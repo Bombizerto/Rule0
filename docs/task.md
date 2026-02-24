@@ -18,8 +18,8 @@ Requisitos mínimos para sustituir el uso de hojas de cálculo y ofrecer una exp
 ### 2. Motor de Emparejamiento (Matchmaking) y Asientos (Seating)
 - [ ] Desarrollar el agoritmo base de agrupación en mesas de 4 (pods) basándose en puntos actuales (Sistema Suizo adaptado).
 - [ ] Implementar agrupaciones para mesas de 3 (cuando no hay múltiplos de 4).
-- [ ] **Lógica de Asientos (cEDH):** Desarrollar algoritmo para asignar el orden de turnos (1º a 4º) premiando al jugador con más puntos.
-- [ ] **Lógica de Desempate de Asientos (ASQ - Average Seat Quality):** Implementar cálculo histórico para resolver empates y evitar rachas en el asiento 4.
+- [ ] **Lógica de Asientos (ASQ - Average Seat Quality):** Desarrollar algoritmo para equilibrar matemáticamente la "ventaja de turno" a lo largo del evento, premiando con asientos iniciales (1º o 2º) a quienes hayan sufrido peores posiciones históricamente.
+- [ ] **Desempate en Asientos:** Si los ASQ son equitativos, penalizar otorgando asientos traseros a quien haya salido 1º más veces absolutas durante el torneo.
 - [ ] Desarrollar la opción de "Matchmaking Casual" (priorizar no repetir oponentes frente a emparejar por puntos).
 
 ### 3. Ejecución de la Ronda (Dashboard Organizador)

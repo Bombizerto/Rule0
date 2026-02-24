@@ -13,9 +13,9 @@ El motor de emparejamiento de R0 agrupa a los jugadores en mesas óptimas de 4 (
 
 ### 2. Algoritmo de "Seating" (Orden de Turno)
 El orden en que los jugadores desarrollan su turno influye drásticamente en su probabilidad de victoria en Commander (especialmente en **cEDH**). 
-Para solucionar el desequilibrio al orden de juego:
-* Premia al jugador que ha acumulado más méritos.
-* Calcula el parámetro **ASQ (Average Seat Quality)** a lo largo de las rondas de un jugador, evitando repetidamente enviarle al asiento 4 (el estadísticamente menos favorable).
+Para solucionar el desequilibrio inherente al orden de juego (donde salir primero es una ventaja estadística demostrable):
+* Implementa una lógica basada en el historial de asientos (como el parámetro **ASQ - Average Seat Quality** y contabilización de salidas previas en Asiento 1).
+* De esta forma, busca compensar para que quien ya ha tenido ventajas iniciales (asientos 1 y 2) ceda su turno a oponentes que hayan jugado sistemáticamente en peores asientos (ej. Asiento 4), independientemente de la puntuación total acumulada.
 
 ### 3. Puntuación Dinámica y Sistemas "Trust"
 La aplicación está preparada para operar en dos realidades:
