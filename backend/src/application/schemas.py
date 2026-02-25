@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 from domain.entities import EventStatus
 
@@ -44,6 +44,11 @@ class EventResponse(EventBase):
     """Datos que devolvemos al frontend sobre un evento."""
     id: str
     status: EventStatus
+    join_code: str
+    players: List[str]
     created_at: Optional[datetime] = None
-    
     model_config = ConfigDict(from_attributes=True)
+
+class EventRegistrationRequest(BaseModel):
+    user_id: str
+    join_code: str

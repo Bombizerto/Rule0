@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 from enum import Enum
 
@@ -38,6 +38,9 @@ class Event:
     id: str
     title: str
     organizer_id: str  # El ID del usuario que creó el evento
-    ruleset_id: str    # ID de las reglas aplicadas
+    ruleset_id: str
+    join_code: str
+    players: List[str]    # ID de las reglas aplicadas
     status: EventStatus = EventStatus.PENDING
     created_at: Optional[datetime] = None
+    
