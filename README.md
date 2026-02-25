@@ -30,3 +30,13 @@ Los jugadores no dependen de buscar su nombre en una hoja de papel pegada en una
 ## Futuro del Proyecto (V2)
 
 En futuras expansiones, la aplicación pretende integrar analíticas cruzando información de las barajas con APIs como Scryfall/Moxfield para mostrar el Metajuego local del local, incorporar sistemas de Gamificación (logros permanentes) e integrar métricas de "*Power Level*" para el disfrute de la vertiente Casual.
+
+## Ejecución del Backend (Desarrollo)
+
+Para levantar el servidor backend en entorno local (desarrollo), asegúrate de tener el entorno virtual activado y ejecuta el siguiente comando desde la carpeta `backend/src`:
+
+```bash
+uvicorn presentation.main:app --reload
+```
+
+> **Nota sobre Gunicorn:** Dado que el desarrollo se está realizando en entorno **Windows**, utilizamos `uvicorn` directamente. Gunicorn es un servidor WSGI diseñado fundamentalmente para sistemas UNIX (Linux/macOS) y no tiene soporte oficial nativo en Windows. En producción (cuando se use Docker/Linux), se utilizará Gunicorn gestionando *workers* de Uvicorn.

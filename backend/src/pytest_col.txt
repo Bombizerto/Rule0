@@ -1,0 +1,32 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.13.12, pytest-8.4.1, pluggy-1.6.0
+rootdir: C:\Users\aidan.marinelarena\source\repos\Rule0\backend\src
+plugins: anyio-4.12.1, cov-6.2.1
+collected 0 items / 2 errors
+
+=================================== ERRORS ====================================
+____________________ ERROR collecting tests/test_events.py ____________________
+tests\test_events.py:5: in <module>
+    from presentation.main import app, fake_events_db, fake_rulesets_db
+presentation\main.py:7: in <module>
+    app = FastAPI(
+          ^^^^^^^
+E   NameError: name 'FastAPI' is not defined
+____________________ ERROR collecting tests/test_users.py _____________________
+tests\test_users.py:5: in <module>
+    from presentation.main import app, fake_users_db
+presentation\main.py:7: in <module>
+    app = FastAPI(
+          ^^^^^^^
+E   NameError: name 'FastAPI' is not defined
+============================== warnings summary ===============================
+..\..\..\..\..\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\pydantic\_internal\_config.py:323
+  C:\Users\aidan.marinelarena\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\pydantic\_internal\_config.py:323: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.11/migration/
+    warnings.warn(DEPRECATION_MESSAGE, DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+ERROR tests/test_events.py - NameError: name 'FastAPI' is not defined
+ERROR tests/test_users.py - NameError: name 'FastAPI' is not defined
+!!!!!!!!!!!!!!!!!!! Interrupted: 2 errors during collection !!!!!!!!!!!!!!!!!!!
+==================== no tests collected, 2 errors in 1.44s ====================
