@@ -25,3 +25,9 @@ def assign_seats(table_players: List[User]):
     seats=sorted(table_players, key=lambda x: x.seat_history[1])
     return seats
 
+def run_casual_matchmaking(players: List[User]):
+    tables=create_groups(players)
+    finalPods=[]
+    for table in tables:
+        finalPods.append(assign_seats(table))
+    return finalPods

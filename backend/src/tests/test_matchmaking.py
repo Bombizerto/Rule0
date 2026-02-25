@@ -1,5 +1,5 @@
 import pytest
-from domain.services.matchmaking import calculate_tables, create_groups, assign_seats
+from domain.services.matchmaking import calculate_tables, create_groups, assign_seats, run_casual_matchmaking
 from domain.entities import User
 
 def test_calculate_tables_multiple_of_4():
@@ -89,3 +89,15 @@ def test_assign_seats_random_tiebreak():
     
     # Debe haber al menos dos combinaciones distintas: ('Lucas', 'Dani') y ('Dani', 'Lucas')
     assert len(results) > 1
+
+def test_run_casual_matchmaking():
+    """Prueba que el matchmaking casual funciona correctamente."""
+    players = [User(id=f"P{i}", alias=f"P{i}") for i in range(1, 11)]
+    pods = run_casual_matchmaking(players)
+    
+    # Verificamos que el número de mesas es correcto (1 mesa de 4 y 2 mesas de 3)
+    assert len(pods) == 3
+    
+    # Verificamos que todos los jugadores originales están presentes
+    all_assigned_players = [p for pod in pods for p in pod]
+    assert sorted([u.id for u in all_assigned_players]) == sorted([u.id for u in players])
