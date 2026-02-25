@@ -1,5 +1,5 @@
-from dataclasses import dataclass
-from typing import Optional, List
+from dataclasses import dataclass, field
+from typing import Optional, List, Dict
 from datetime import datetime
 from enum import Enum
 
@@ -14,6 +14,7 @@ class User:
     alias: str
     email: Optional[str] = None
     is_guest: bool = False
+    seat_history: Dict[int, int] = field(default_factory=lambda: {1: 0, 2: 0, 3: 0, 4: 0})
 
 class EventStatus(str, Enum):
     """Estados posibles para un Evento (Torneo/Liga)."""
