@@ -1,0 +1,15 @@
+meta {
+  name: Get Event Details
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/matchmaking/events/:event_id
+  body: none
+  auth: none
+}
+
+params:path {
+  event_id: test-event-123
+}

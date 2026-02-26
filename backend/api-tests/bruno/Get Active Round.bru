@@ -1,0 +1,15 @@
+meta {
+  name: Get Active Round
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/matchmaking/events/:event_id/active-round
+  body: none
+  auth: none
+}
+
+params:path {
+  event_id: test-event-123
+}

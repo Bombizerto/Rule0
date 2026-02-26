@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from domain.services.create_round import create_round
 from domain.entities import User # Lo necesitaremos para los tipos
 from infrastructure.database import fake_events_db, fake_users_db
+from application.schemas import EventResponse
 
 router = APIRouter(prefix="/matchmaking", tags=["Matchmaking"])
 
@@ -27,3 +28,22 @@ async def generate_round_endpoint(event_id: str):
         "message": f"Generando ronda para el evento {event_id}",
         "status": "pairing"
     }
+
+@router.get("/events/{event_id}", response_model=EventResponse)
+def get_event(event_id: str):
+    event = next((e for e in fake_events_db if e.id == event_id), None)
+    if not event:
+        raise HTTPException(status_code=404, detail="Evento no encontrado")
+    return event
+
+@router.get("/events/{event_id}/active-round")
+async def get_active_round(event_id: str):
+    event = next((e for e in fake_events_db if e.id == event_id), None)
+    if not event:
+        raise HTTPException(status_code=404, detail="Evento no encontrado")
+    
+    if not event.rounds:
+        raise HTTPException(status_code=400, detail="No hay rondas generadas para este evento")
+    
+    # Devolvemos la última ronda de la lista
+    return event.rounds[-1]

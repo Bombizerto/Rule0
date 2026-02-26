@@ -21,6 +21,13 @@ def health_check():
     """Ruta para verificar que el servidor está funcionando."""
     return {"status": "ok", "message": "Rule Zero API is running"}
 
+@app.post("/debug/seed")
+def seed_database():
+    """Puebla la base de datos con datos de prueba automáticamente."""
+    from infrastructure.seed import seed_test_data
+    seed_test_data()
+    return {"message": "Database seeded successfully", "event_id": "test-event-123"}
+
 @app.post("/users/", response_model=UserResponse)
 def create_user(user_in: UserCreate):
     """
@@ -90,3 +97,4 @@ def register_to_event(data: EventRegistrationRequest):
     if data.user_id not in event.players:
         event.players.append(data.user_id)
     return event
+
