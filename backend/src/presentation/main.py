@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, UTC
 from presentation.routers.matchmaking import router as matchmaking_router 
 from application.schemas import UserCreate, UserResponse, EventCreate, EventResponse, FormatRulesetCreate, FormatRulesetResponse, EventRegistrationRequest
-from domain.entities import User, Event, FormatRuleset, EventStatus
+from domain.entities import User, Event, FormatRuleset, EventStatus, PlayerStatus
 from infrastructure.database import fake_users_db, fake_events_db, fake_rulesets_db
 import secrets
 
@@ -96,5 +96,6 @@ def register_to_event(data: EventRegistrationRequest):
         raise HTTPException(status_code=400, detail="El evento ya ha comenzado o ha finalizado")
     if data.user_id not in event.players:
         event.players.append(data.user_id)
+        event.player_status[data.user_id] = PlayerStatus.ACTIVE
     return event
 

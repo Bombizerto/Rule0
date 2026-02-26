@@ -1,0 +1,20 @@
+meta {
+  name: Change Player Status
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/matchmaking/events/:event_id/change_player_status?player_id=PONER_ID_AQUI&status=dropped
+  body: none
+  auth: none
+}
+
+params:path {
+  event_id: test-event-123
+}
+
+params:query {
+  player_id: PONER_ID_AQUI
+  status: dropped
+}

@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from presentation.main import app, fake_events_db, fake_rulesets_db
-from domain.entities import Event, FormatRuleset, EventStatus
+from domain.entities import Event, FormatRuleset, EventStatus, PlayerStatus
 from application.schemas import EventCreate, FormatRulesetCreate
 
 client = TestClient(app)
@@ -91,6 +91,7 @@ def test_presentation_rgister_to_event_success():
         ruleset_id="ruleset-1",
         join_code="A1B2C3",
         players=[]
+        
     )
     fake_events_db.append(fake_event)
     payload = {

@@ -1,5 +1,5 @@
 from infrastructure.database import fake_users_db, fake_events_db, fake_rulesets_db
-from domain.entities import User, Event, FormatRuleset, EventStatus
+from domain.entities import User, Event, FormatRuleset, EventStatus, PlayerStatus
 from datetime import datetime
 import uuid
 
@@ -35,8 +35,9 @@ def seed_test_data():
         ruleset_id=rs.id,
         join_code="MTG99",
         players=[u.id for u in fake_users_db], # Todos inscritos
-        status=EventStatus.PENDING,
-        created_at=datetime.now()
+        status=EventStatus.ACTIVE,
+        created_at=datetime.now(),
+        player_status={u.id: PlayerStatus.ACTIVE for u in fake_users_db}
     )
     fake_events_db.append(ev)
     

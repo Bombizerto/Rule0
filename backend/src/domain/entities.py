@@ -22,6 +22,12 @@ class EventStatus(str, Enum):
     ACTIVE = "active"
     COMPLETED = "completed"
 
+class PlayerStatus(str, Enum):
+    """Estados posibles para un Jugador en un Evento."""
+    ACTIVE = "active"
+    DROPPED = "dropped"
+    DISQUALIFIED = "disqualified"
+    PAUSED ="paused"
 
 @dataclass
 class FormatRuleset:
@@ -46,6 +52,7 @@ class Event:
     created_at: Optional[datetime] = None
     round_number: int=0
     rounds: List['Round'] = field(default_factory=list)
+    player_status: Dict[str, PlayerStatus] = field(default_factory=dict)
 
 @dataclass
 class Pod:

@@ -30,24 +30,3 @@ def create_round(event_id: str, round_number: int, players: List[User]) -> Round
     )
 
     return new_round
-
-if __name__ == "__main__":
-    # 1. Simulamos 10 jugadores (esto debería crear 1 mesa de 4 y 2 de 3, según tu algoritmo)
-    test_players = [
-        User(id=f"u{i}", alias=f"Jugador {i}") for i in range(1, 11)
-    ]
-    
-    # 2. Ejecutamos nuestra creación de ronda
-    mi_ronda = create_round(
-        event_id="torneo-premium-001",
-        round_number=1,
-        players=test_players
-    )
-    
-    # 3. Verificamos los resultados por consola
-    print(f"\n🚀 {mi_ronda.id}")
-    print(f"📅 Creada el: {mi_ronda.created_at}")
-    print(f"🔢 Ronda: {mi_ronda.round_number} | Evento: {mi_ronda.event_id}\n")
-    
-    for pod in mi_ronda.pods:
-        print(f"🪑 Mesa {pod.table_number:>2} | Jugadores: {pod.players_ids}")

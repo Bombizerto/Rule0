@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from typing import Optional, List
 from datetime import datetime
-from domain.entities import EventStatus
+from domain.entities import EventStatus, PlayerStatus
 
 class UserBase(BaseModel):
     """Atributos compartidos por todos los esquemas de Usuario."""
@@ -55,3 +55,7 @@ class EventRegistrationRequest(BaseModel):
 
 class PodWinnerReport(BaseModel):
     winner_id: str
+
+class PlayerStatusUpdate(BaseModel):
+    player_id: str
+    status: PlayerStatus
