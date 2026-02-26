@@ -52,3 +52,6 @@ class EventResponse(EventBase):
 class EventRegistrationRequest(BaseModel):
     user_id: str
     join_code: str
+
+class PodWinnerReport(BaseModel):
+    winner_id: str

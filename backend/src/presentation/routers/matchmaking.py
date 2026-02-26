@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from domain.services.create_round import create_round
 from domain.entities import User # Lo necesitaremos para los tipos
 from infrastructure.database import fake_events_db, fake_users_db
-from application.schemas import EventResponse
+from application.schemas import EventResponse, PodWinnerReport
 
 router = APIRouter(prefix="/matchmaking", tags=["Matchmaking"])
 
@@ -47,3 +47,19 @@ async def get_active_round(event_id: str):
     
     # Devolvemos la última ronda de la lista
     return event.rounds[-1]
+
+@router.post("/pods/{pod_id}/report-winner", response_model=User)
+async def report_winner(pod_id: str, report: PodWinnerReport):
+    pod = next((p for event in fake_events_db 
+              for round in event.rounds 
+              for p in round.pods 
+              if p.id == pod_id), None)
+    if not pod:
+        raise HTTPException(status_code=404, detail="Pod no encontrado")
+    ganador=next((u for u in fake_users_db if u.id == report.winner_id), None)
+    if(report.winner_id not in pod.players_ids):
+        raise HTTPException(status_code=400, detail="El jugador no pertenece a este pod")
+    pod.winner_id=report.winner_id
+    
+    return ganador
+

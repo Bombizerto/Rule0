@@ -1,0 +1,21 @@
+meta {
+  name: Report Pod Winner
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/matchmaking/pods/:pod_id/report-winner
+  body: json
+  auth: none
+}
+
+params:path {
+  pod_id: PONER_ID_AQUI
+}
+
+body:json {
+  {
+    "winner_id": "PONER_ID_AQUI"
+  }
+}
