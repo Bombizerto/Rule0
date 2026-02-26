@@ -1,4 +1,3 @@
-from fastapi import HTTPException
 from infrastructure.database import fake_events_db, fake_rulesets_db
 
 def calculate_leaderboard(event_id: str):

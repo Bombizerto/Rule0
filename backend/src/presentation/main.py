@@ -1,5 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from typing import List
+from fastapi.middleware.cors import CORSMiddleware
+
 import uuid
 from datetime import datetime, UTC
 from presentation.routers.matchmaking import router as matchmaking_router 
@@ -13,6 +15,14 @@ app = FastAPI(
     title="Rule Zero API",
     description="Backend para App Commander MTG",
     version="1.0.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # En producción deberíamos restringir esto
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 app.include_router(matchmaking_router)
 # Endpoint básico de estado (Health Check)

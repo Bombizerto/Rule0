@@ -1,0 +1,6 @@
+/* CSS base del componente App se ha movido a index.css para un sistema de diseño global */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 80vh;
+}

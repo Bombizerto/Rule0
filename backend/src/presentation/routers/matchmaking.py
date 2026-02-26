@@ -64,11 +64,6 @@ async def report_winner(pod_id: str, report: PodWinnerReport):
     
     return ganador
 
-@router.get("/events/{event_id}/leaderboard")
-def get_leaderboard(event_id: str):
-    """Devuelve la clasificación actual del evento."""
-    return calculate_leaderboard(event_id)
-
 @router.post("/pods/{pod_id}/report-draw")
 async def report_draw(pod_id: str):
     pod = next((p for event in fake_events_db 
@@ -93,4 +88,27 @@ def change_player_status(event_id: str, player_status_update: PlayerStatusUpdate
         raise HTTPException(status_code=400, detail="Estado de jugador no válido")
     event.player_status[player_status_update.player_id] = player_status_update.status
     return {"message": f"Estado del jugador {player_status_update.player_id} cambiado a {player_status_update.status}"}
+
+@router.get("/events/{event_id}/leaderboard")
+def get_leaderboard(event_id: str):
+    # 1. Obtienes los datos puros (Dominio)
+    leaderboard_tuples = calculate_leaderboard(event_id)
+    
+    # 2. Creamos la lista para los objetos híbridos
+    final_leaderboard = []
+    
+    for player_id, points in leaderboard_tuples:
+        # Busca el usuario en fake_users_db usando su ID
+        user = next((u for u in fake_users_db if u.id == player_id), None)
+        
+        # 3. Aquí es donde ocurre la "hibridación"
+        # Añade a final_leaderboard un diccionario que tenga:
+        # "player_id", "alias" (del usuario) y "points"
+        final_leaderboard.append({
+            "player_id": player_id,
+            "alias": user.alias if user else "Desconocido",
+            "points": points
+        })
+        
+    return final_leaderboard
 
