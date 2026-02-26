@@ -44,4 +44,21 @@ class Event:
     players: List[str]    # ID de las reglas aplicadas
     status: EventStatus = EventStatus.PENDING
     created_at: Optional[datetime] = None
+
+@dataclass
+class Pod:
+    """Representa una mesa de juego con sus jugadores asignados."""
+    id: str
+    table_number: int
+    players_ids: List[str]
+    winner_id: Optional[str] = None
     
+@dataclass
+class Round:
+    """Representa una ronda de un evento."""
+    id: str
+    event_id: str
+    round_number: int
+    pods: List[Pod]
+    is_active: bool = True
+    created_at: Optional[datetime] = None
