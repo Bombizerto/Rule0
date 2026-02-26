@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from typing import List
 import uuid
 from datetime import datetime, UTC
+from presentation.routers.matchmaking import router as matchmaking_router 
 from application.schemas import UserCreate, UserResponse, EventCreate, EventResponse, FormatRulesetCreate, FormatRulesetResponse, EventRegistrationRequest
 from domain.entities import User, Event, FormatRuleset, EventStatus
 import secrets
@@ -12,7 +13,7 @@ app = FastAPI(
     description="Backend para App Commander MTG",
     version="1.0.0"
 )
-
+app.include_router(matchmaking_router)
 # Endpoint básico de estado (Health Check)
 @app.get("/")
 def health_check():
