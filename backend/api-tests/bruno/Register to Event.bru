@@ -1,0 +1,18 @@
+meta {
+  name: Register to Event
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/events/register
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "user_id": "PONER_ID_AQUI",
+    "join_code": "PONER_CODIGO_AQUI"
+  }
+}

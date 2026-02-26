@@ -1,0 +1,9 @@
+{
+  "name": "Rule0 API",
+  "version": "1",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

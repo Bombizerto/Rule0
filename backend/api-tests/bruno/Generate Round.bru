@@ -1,0 +1,15 @@
+meta {
+  name: Generate Round
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/matchmaking/events/:event_id/generate-round
+  body: none
+  auth: none
+}
+
+params:path {
+  event_id: PONER_ID_AQUI
+}

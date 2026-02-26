@@ -1,0 +1,19 @@
+meta {
+  name: Create Event
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/events/
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "title": "Torneo de Inauguración",
+    "ruleset_id": "PONER_ID_AQUI",
+    "organizer_id": "PONER_ID_AQUI"
+  }
+}

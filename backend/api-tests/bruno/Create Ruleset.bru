@@ -1,0 +1,25 @@
+meta {
+  name: Create Ruleset
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/rulesets/
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "name": "Commander Casual",
+    "win_points": 3,
+    "draw_points": 1,
+    "kill_points": 1,
+    "allows_custom_achievements": true
+  }
+}
+
+vars:pre-request {
+  baseUrl: l
+}

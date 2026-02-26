@@ -14,7 +14,7 @@ class User:
     alias: str
     email: Optional[str] = None
     is_guest: bool = False
-    seat_history: Dict[int, int] = field(default_factory=lambda: {1: 0, 2: 0, 3: 0, 4: 0})
+    seat_history: Dict[int, int] = field(default_factory=lambda: {1: 0, 2: 0, 3: 0, 4: 0, 5:0})
 
 class EventStatus(str, Enum):
     """Estados posibles para un Evento (Torneo/Liga)."""
@@ -44,6 +44,8 @@ class Event:
     players: List[str]    # ID de las reglas aplicadas
     status: EventStatus = EventStatus.PENDING
     created_at: Optional[datetime] = None
+    round_number: int=0
+    rounds: List['Round'] = field(default_factory=list)
 
 @dataclass
 class Pod:
@@ -62,3 +64,5 @@ class Round:
     pods: List[Pod]
     is_active: bool = True
     created_at: Optional[datetime] = None
+    
+

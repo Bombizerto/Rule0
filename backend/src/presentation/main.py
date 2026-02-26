@@ -5,6 +5,7 @@ from datetime import datetime, UTC
 from presentation.routers.matchmaking import router as matchmaking_router 
 from application.schemas import UserCreate, UserResponse, EventCreate, EventResponse, FormatRulesetCreate, FormatRulesetResponse, EventRegistrationRequest
 from domain.entities import User, Event, FormatRuleset, EventStatus
+from infrastructure.database import fake_users_db, fake_events_db, fake_rulesets_db
 import secrets
 
 # Inicializamos la instacia de nuestra aplicación
@@ -19,11 +20,6 @@ app.include_router(matchmaking_router)
 def health_check():
     """Ruta para verificar que el servidor está funcionando."""
     return {"status": "ok", "message": "Rule Zero API is running"}
-
-# Base de datos en memoria temporal (simula Infrastructure)
-fake_users_db: List[User] = []
-fake_events_db: List[Event] = []
-fake_rulesets_db: List[FormatRuleset] = []
 
 @app.post("/users/", response_model=UserResponse)
 def create_user(user_in: UserCreate):
