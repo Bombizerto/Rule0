@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from domain.services.create_round import create_round
+from domain.services.leaderboard import calculate_leaderboard
 from domain.entities import User # Lo necesitaremos para los tipos
 from infrastructure.database import fake_events_db, fake_users_db
 from application.schemas import EventResponse, PodWinnerReport
@@ -62,4 +63,20 @@ async def report_winner(pod_id: str, report: PodWinnerReport):
     pod.winner_id=report.winner_id
     
     return ganador
+
+@router.get("/events/{event_id}/leaderboard")
+def get_leaderboard(event_id: str):
+    """Devuelve la clasificación actual del evento."""
+    return calculate_leaderboard(event_id)
+
+@router.post("/pods/{pod_id}/report-draw")
+async def report_draw(pod_id: str):
+    pod = next((p for event in fake_events_db 
+              for round in event.rounds 
+              for p in round.pods 
+              if p.id == pod_id), None)
+    if not pod:
+        raise HTTPException(status_code=404, detail="Pod no encontrado")
+    pod.is_draw = True
+    return {"message": f"Empate reportado para el pod {pod_id}"}
 

@@ -54,6 +54,7 @@ class Pod:
     table_number: int
     players_ids: List[str]
     winner_id: Optional[str] = None
+    is_draw: bool = False
     
 @dataclass
 class Round:

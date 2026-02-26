@@ -4,30 +4,35 @@ from domain.entities import User
 
 def test_calculate_tables_multiple_of_4():
     """Prueba con números divisibles por 4 (ideal)."""
-    assert calculate_tables(12) == (0, 3)
-    assert calculate_tables(16) == (0, 4)
+    assert calculate_tables(12) == (0, 3,0)
+    assert calculate_tables(16) == (0, 4,0)
 
 def test_calculate_tables_with_remainder():
     """Prueba con restos que requieren mesas de 3."""
     # 9 jugadores: 3 mesas de 3, 0 de 4
     # (En realidad 9-9=0 // 4 = 0) -> (3, 0)
-    assert calculate_tables(9) == (3, 0)
+    assert calculate_tables(9) == (3, 0,0)
     
     # 10 jugadores: 2 mesas de 3, 1 de 4
     # (10-6=4 // 4 = 1) -> (2, 1)
-    assert calculate_tables(10) == (2, 1)
+    assert calculate_tables(10) == (2, 1,0)
     
     # 11 jugadores: 1 mesa de 3, 2 de 4
     # (11-3=8 // 4 = 2) -> (1, 2)
-    assert calculate_tables(11) == (1, 2)
+    assert calculate_tables(11) == (1, 2,0)
 
 def test_calculate_tables_large_number():
     """Prueba con un número grande."""
-    assert calculate_tables(100) == (0, 25)
+    assert calculate_tables(100) == (0, 25,0)
 
 def test_calculate_tables_minimum():
     """Prueba con el mínimo de jugadores (3)."""
-    assert calculate_tables(3) == (1, 0)
+    assert calculate_tables(3) == (1, 0,0)
+
+def test_calculate_tables_5():
+    """Prueba con el mínimo de jugadores (3)."""
+    assert calculate_tables(5) == (0, 0,1)
+
 
 def test_create_groups_10_players():
     """Prueba que 10 jugadores se reparten en una mesa de 4 y dos de 3."""

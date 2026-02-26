@@ -1,0 +1,15 @@
+meta {
+  name: Report Draw
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/matchmaking/pods/:pod_id/report-draw
+  body: none
+  auth: none
+}
+
+params:path {
+  pod_id: PONER_ID_AQUI
+}

@@ -1,0 +1,15 @@
+meta {
+  name: Get Leaderboard
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/matchmaking/events/:event_id/leaderboard
+  body: none
+  auth: none
+}
+
+params:path {
+  event_id: test-event-123
+}
