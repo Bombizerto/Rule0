@@ -40,12 +40,18 @@ class EventBase(BaseModel):
 class EventCreate(EventBase):
     """Datos necesarios para crear un evento."""
     pass
+class EventPlayerResponse(BaseModel):
+    """Datos de cada jugador dentro del contexto de un evento"""
+    id: str
+    alias: str
+    status: str
+
 class EventResponse(EventBase):
     """Datos que devolvemos al frontend sobre un evento."""
     id: str
     status: EventStatus
     join_code: str
-    players: List[str]
+    players: List[EventPlayerResponse]
     created_at: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)
 
@@ -59,3 +65,4 @@ class PodWinnerReport(BaseModel):
 class PlayerStatusUpdate(BaseModel):
     player_id: str
     status: PlayerStatus
+

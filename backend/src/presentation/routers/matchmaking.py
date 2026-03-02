@@ -35,7 +35,27 @@ def get_event(event_id: str):
     event = next((e for e in fake_events_db if e.id == event_id), None)
     if not event:
         raise HTTPException(status_code=404, detail="Evento no encontrado")
-    return event
+        
+    enriched_players = []
+    for pid in event.players:
+        user = next((u for u in fake_users_db if u.id == pid), None)
+        status = event.player_status.get(pid, PlayerStatus.ACTIVE).value
+        enriched_players.append({
+            "id": pid,
+            "alias": user.alias if user else "Desconocido",
+            "status": status
+        })
+        
+    return {
+        "id": event.id,
+        "title": event.title,
+        "organizer_id": event.organizer_id,
+        "ruleset_id": event.ruleset_id,
+        "status": event.status,
+        "join_code": event.join_code,
+        "created_at": event.created_at,
+        "players": enriched_players
+    }
 
 @router.get("/events/{event_id}/active-round")
 async def get_active_round(event_id: str):
