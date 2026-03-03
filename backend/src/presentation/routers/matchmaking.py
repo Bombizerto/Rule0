@@ -1,29 +1,40 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session
 from domain.services.create_round import create_round
 from domain.services.leaderboard import calculate_leaderboard
-from domain.entities import User, PlayerStatus, EventStatus # Lo necesitaremos para los tipos
-from infrastructure.database import fake_events_db, fake_users_db
+from domain.entities import User, PlayerStatus, EventStatus
+from infrastructure.database import get_db
+from infrastructure.repositories import EventRepository, UserRepository, FormatRulesetRepository
 from application.schemas import EventResponse, PodWinnerReport, PlayerStatusUpdate
 
 router = APIRouter(prefix="/matchmaking", tags=["Matchmaking"])
 
 @router.post("/events/{event_id}/generate-round")
-async def generate_round_endpoint(event_id: str):
+async def generate_round_endpoint(event_id: str, db: Session = Depends(get_db)):
     """
     Endpoint para generar una nueva ronda de forma automática.
     """
-    event=next((e for e in fake_events_db if e.id == event_id), None)
+    event_repo = EventRepository(db)
+    user_repo = UserRepository(db)
+    ruleset_repo = FormatRulesetRepository(db)
+
+    event = event_repo.get_by_id(event_id)
     if not event:
         raise HTTPException(status_code=404, detail="Evento no encontrado")
     
-    players=[user for user in fake_users_db if user.id in event.players and event.player_status.get(user.id, PlayerStatus.ACTIVE) == PlayerStatus.ACTIVE]
+    players = []
+    for pid in event.players:
+        if event.player_status.get(pid, PlayerStatus.ACTIVE) == PlayerStatus.ACTIVE:
+            u = user_repo.get_by_id(pid)
+            if u:
+                players.append(u)
     
-    if len(players)<3:
+    if len(players) < 3:
         raise HTTPException(status_code=400, detail="No hay suficientes jugadores para generar una ronda")
         
     # Obtener Leaderboard para los puntos de emparejamiento
     try:
-        leaderboard_data = calculate_leaderboard(event_id)
+        leaderboard_data = calculate_leaderboard(event_id, event_repo, ruleset_repo)
         player_scores = {pid: points for pid, points in leaderboard_data}
     except HTTPException:
         player_scores = {pid: 0 for pid in event.players} # Por si falla o es la 1a ronda
@@ -36,9 +47,11 @@ async def generate_round_endpoint(event_id: str):
                 if pid in player_history:
                     player_history[pid].extend([opp for opp in pod.players_ids if opp != pid])
                     
-    new_round=create_round(event_id, event.round_number+1, players, player_scores, player_history)
+    new_round = create_round(event_id, event.round_number + 1, players, player_scores, player_history)
     event.rounds.append(new_round)
-    event.round_number+=1
+    event.round_number += 1
+
+    event_repo.save(event)
 
     return {
         "round": new_round,
@@ -47,14 +60,17 @@ async def generate_round_endpoint(event_id: str):
     }
 
 @router.get("/events/{event_id}", response_model=EventResponse)
-def get_event(event_id: str):
-    event = next((e for e in fake_events_db if e.id == event_id), None)
+def get_event(event_id: str, db: Session = Depends(get_db)):
+    event_repo = EventRepository(db)
+    user_repo = UserRepository(db)
+
+    event = event_repo.get_by_id(event_id)
     if not event:
         raise HTTPException(status_code=404, detail="Evento no encontrado")
         
     enriched_players = []
     for pid in event.players:
-        user = next((u for u in fake_users_db if u.id == pid), None)
+        user = user_repo.get_by_id(pid)
         status = event.player_status.get(pid, PlayerStatus.ACTIVE).value
         enriched_players.append({
             "id": pid,
@@ -75,8 +91,9 @@ def get_event(event_id: str):
     }
 
 @router.get("/events/{event_id}/active-round")
-async def get_active_round(event_id: str):
-    event = next((e for e in fake_events_db if e.id == event_id), None)
+async def get_active_round(event_id: str, db: Session = Depends(get_db)):
+    event_repo = EventRepository(db)
+    event = event_repo.get_by_id(event_id)
     if not event:
         raise HTTPException(status_code=404, detail="Evento no encontrado")
     
@@ -87,34 +104,64 @@ async def get_active_round(event_id: str):
     return event.rounds[-1]
 
 @router.post("/pods/{pod_id}/report-winner", response_model=User)
-async def report_winner(pod_id: str, report: PodWinnerReport):
-    pod = next((p for event in fake_events_db 
-              for round in event.rounds 
-              for p in round.pods 
-              if p.id == pod_id), None)
+async def report_winner(pod_id: str, report: PodWinnerReport, db: Session = Depends(get_db)):
+    event_repo = EventRepository(db)
+    user_repo = UserRepository(db)
+
+    # Buscar el evento al que pertenece este pod.
+    event = event_repo.get_pod_by_id(pod_id)
+    if not event:
+        raise HTTPException(status_code=404, detail="Pod no encontrado")
+
+    pod = None
+    for r in event.rounds:
+        for p in r.pods:
+            if p.id == pod_id:
+                pod = p
+                break
+
     if not pod:
         raise HTTPException(status_code=404, detail="Pod no encontrado")
-    ganador=next((u for u in fake_users_db if u.id == report.winner_id), None)
-    if(report.winner_id not in pod.players_ids):
+        
+    if report.winner_id not in pod.players_ids:
         raise HTTPException(status_code=400, detail="El jugador no pertenece a este pod")
-    pod.winner_id=report.winner_id
+
+    pod.winner_id = report.winner_id
     
+    # Guardamos el evento que propaga los cambios en cascada a rounds y pods
+    event_repo.save(event)
+
+    ganador = user_repo.get_by_id(report.winner_id)
     return ganador
 
 @router.post("/pods/{pod_id}/report-draw")
-async def report_draw(pod_id: str):
-    pod = next((p for event in fake_events_db 
-              for round in event.rounds 
-              for p in round.pods 
-              if p.id == pod_id), None)
+async def report_draw(pod_id: str, db: Session = Depends(get_db)):
+    event_repo = EventRepository(db)
+    
+    event = event_repo.get_pod_by_id(pod_id)
+    if not event:
+        raise HTTPException(status_code=404, detail="Pod no encontrado")
+
+    pod = None
+    for r in event.rounds:
+        for p in r.pods:
+            if p.id == pod_id:
+                pod = p
+                break
+
     if not pod:
         raise HTTPException(status_code=404, detail="Pod no encontrado")
+        
     pod.is_draw = True
+    event_repo.save(event)
+
     return {"message": f"Empate reportado para el pod {pod_id}"}
 
+
 @router.post("/events/{event_id}/change_player_status")
-def change_player_status(event_id: str, player_status_update: PlayerStatusUpdate):
-    event = next((e for e in fake_events_db if e.id == event_id), None)
+def change_player_status(event_id: str, player_status_update: PlayerStatusUpdate, db: Session = Depends(get_db)):
+    event_repo = EventRepository(db)
+    event = event_repo.get_by_id(event_id)
     if not event:
         raise HTTPException(status_code=404, detail="Evento no encontrado")
     if player_status_update.player_id not in event.players:
@@ -123,24 +170,28 @@ def change_player_status(event_id: str, player_status_update: PlayerStatusUpdate
         raise HTTPException(status_code=400, detail="El evento no está activo")
     if player_status_update.status not in PlayerStatus:
         raise HTTPException(status_code=400, detail="Estado de jugador no válido")
+        
     event.player_status[player_status_update.player_id] = player_status_update.status
+    event_repo.save(event)
     return {"message": f"Estado del jugador {player_status_update.player_id} cambiado a {player_status_update.status}"}
 
+
 @router.get("/events/{event_id}/leaderboard")
-def get_leaderboard(event_id: str):
+def get_leaderboard(event_id: str, db: Session = Depends(get_db)):
+    event_repo = EventRepository(db)
+    ruleset_repo = FormatRulesetRepository(db)
+    user_repo = UserRepository(db)
+
     # 1. Obtienes los datos puros (Dominio)
-    leaderboard_tuples = calculate_leaderboard(event_id)
+    leaderboard_tuples = calculate_leaderboard(event_id, event_repo, ruleset_repo)
     
     # 2. Creamos la lista para los objetos híbridos
     final_leaderboard = []
     
     for player_id, points in leaderboard_tuples:
-        # Busca el usuario en fake_users_db usando su ID
-        user = next((u for u in fake_users_db if u.id == player_id), None)
+        # Busca el usuario
+        user = user_repo.get_by_id(player_id)
         
-        # 3. Aquí es donde ocurre la "hibridación"
-        # Añade a final_leaderboard un diccionario que tenga:
-        # "player_id", "alias" (del usuario) y "points"
         final_leaderboard.append({
             "player_id": player_id,
             "alias": user.alias if user else "Desconocido",
@@ -149,10 +200,12 @@ def get_leaderboard(event_id: str):
         
     return final_leaderboard
 
+
 @router.post("/events/{event_id}/close-round")
-def close_active_round(event_id: str):
+def close_active_round(event_id: str, db: Session = Depends(get_db)):
+    event_repo = EventRepository(db)
     # 1. Buscamos el Torneo (Evento)
-    event = next((e for e in fake_events_db if e.id == event_id), None)
+    event = event_repo.get_by_id(event_id)
     if not event:
         raise HTTPException(status_code=404, detail="Evento no encontrado.")
     # 2. Buscamos la única ronda activa
@@ -161,18 +214,18 @@ def close_active_round(event_id: str):
         raise HTTPException(status_code=400, detail="No hay ninguna ronda activa para cerrar.")
     # 3. Cerramos el chiringuito
     active_round.is_active = False
-    # (Opcional) Aquí iría el reparto de puntos:
-    # Si quisieras, podrías coger 'event.standings' y sumar
-    # +3 al ganador o +1 a todos al empatar.
-    # Transformamos el dataclass a diccionario usando asdict
+    
+    event_repo.save(event)
+
     from dataclasses import asdict
     return {"message": f"Ronda {active_round.round_number} cerrada con éxito.", "round": asdict(active_round)}
 
 
 @router.post("/events/{event_id}/close-event")
-def close_event(event_id: str):
+def close_event(event_id: str, db: Session = Depends(get_db)):
+    event_repo = EventRepository(db)
     # 1. Buscamos el Torneo (Evento)
-    event = next((e for e in fake_events_db if e.id == event_id), None)
+    event = event_repo.get_by_id(event_id)
     if not event:
         raise HTTPException(status_code=404, detail="Evento no encontrado.")
     
@@ -183,5 +236,6 @@ def close_event(event_id: str):
         
     # 3. Cerramos el evento
     event.status = EventStatus.COMPLETED
+    event_repo.save(event)
     
     return {"message": "El torneo ha finalizado oficialmente.", "status": event.status}

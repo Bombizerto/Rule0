@@ -1,16 +1,7 @@
 import pytest
-from fastapi.testclient import TestClient
-
-# Importamos nuestra app para poder hacerle peticiones falsas
-from presentation.main import app, fake_users_db
 from domain.entities import User
 from application.schemas import UserCreate
-
-client = TestClient(app)
-
-def setup_function():
-    """Limpia la base de datos falsa antes de cada test."""
-    fake_users_db.clear()
+from infrastructure.repositories import UserRepository
 
 def test_domain_user_creation():
     """Prueba que una Entidad de Dominio se crea correctamente."""
@@ -25,7 +16,7 @@ def test_application_schema_validation():
     with pytest.raises(ValidationError):
         UserCreate(alias="Jugador2", email="correo_invalido")
 
-def test_presentation_create_user_endpoint():
+def test_presentation_create_user_endpoint(client, db_session):
     """Prueba que el endpoint /users/ funciona y devuelve código 200."""
     respuesta = client.post("/users/", json={
         "alias": "Jugador3",
@@ -37,4 +28,8 @@ def test_presentation_create_user_endpoint():
     datos = respuesta.json()
     assert datos["alias"] == "Jugador3"
     assert "id" in datos
-    assert len(fake_users_db) == 1
+    
+    repo = UserRepository(db_session)
+    user = repo.get_by_id(datos["id"])
+    assert user is not None
+    assert user.alias == "Jugador3"

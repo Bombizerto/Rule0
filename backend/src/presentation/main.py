@@ -7,8 +7,15 @@ from datetime import datetime, UTC
 from presentation.routers.matchmaking import router as matchmaking_router 
 from application.schemas import UserCreate, UserResponse, EventCreate, EventResponse, FormatRulesetCreate, FormatRulesetResponse, EventRegistrationRequest
 from domain.entities import User, Event, FormatRuleset, EventStatus, PlayerStatus
-from infrastructure.database import fake_users_db, fake_events_db, fake_rulesets_db
+from infrastructure.database import get_db, engine
+from infrastructure.models_orm import Base
+from infrastructure.repositories import UserRepository, EventRepository, FormatRulesetRepository
+from sqlalchemy.orm import Session
+from fastapi import Depends
 import secrets
+
+# Inicializamos las tablas (en desarrollo)
+Base.metadata.create_all(bind=engine)
 
 # Inicializamos la instacia de nuestra aplicación
 app = FastAPI(
@@ -39,7 +46,7 @@ def seed_database():
     return {"message": "Database seeded successfully", "event_id": "test-event-123"}
 
 @app.post("/users/", response_model=UserResponse)
-def create_user(user_in: UserCreate):
+def create_user(user_in: UserCreate, db: Session = Depends(get_db)):
     """
     Crea un nuevo usuario en el sistema.
     Pydantic validará automáticamente el alias y el email.
@@ -52,22 +59,19 @@ def create_user(user_in: UserCreate):
         is_guest=user_in.is_guest
     )
     
-    # 2. Guardamos en nuestra "base de datos"
-    fake_users_db.append(new_user)
+    # 2. Guardamos en nuestra base de datos
+    repo = UserRepository(db)
+    repo.save(new_user)
     
     # 3. Devolvemos la entidad de dominio; Pydantic la transformará en UserResponse (gracias a from_attributes=True)
     return new_user
 
 @app.post("/events/", response_model=EventResponse)
-def create_event(event_in: EventCreate):
+def create_event(event_in: EventCreate, db: Session = Depends(get_db)):
     """
     Crea un nuevo torneo/evento.
     La validación (title, ruleset_id, organizer_id) la hace Pydantic.
     """
-    # Aquí podríamos (y deberíamos en el futuro) tener un Caso de Uso que:
-    # 1. Compruebe si organizer_id existe en fake_users_db
-    # 2. Compruebe si ruleset_id existe en fake_rulesets_db
-    
     nuevo_evento = Event(
         id=str(uuid.uuid4()),          # El backend genera el ID
         title=event_in.title,          # Viene valiado por Pydantic
@@ -75,15 +79,18 @@ def create_event(event_in: EventCreate):
         ruleset_id=event_in.ruleset_id,
         status=EventStatus.PENDING,    # Lógica de negocio: empiezan PENDING
         created_at=datetime.now(UTC),
-        join_code=secrets.token_hex(3).upper(),   # Generamos un código de invitación único   # Le asignamos la hora de creación (UTC)
-        players=[]
+        join_code=secrets.token_hex(3).upper(),   # Generamos un código de invitación único
+        players=[],
+        rounds=[],
+        player_status={}
     )
     
-    fake_events_db.append(nuevo_evento)
+    repo = EventRepository(db)
+    repo.save(nuevo_evento)
     return nuevo_evento
 
 @app.post("/rulesets/", response_model=FormatRulesetResponse)
-def create_ruleset(ruleset_in: FormatRulesetCreate):
+def create_ruleset(ruleset_in: FormatRulesetCreate, db: Session = Depends(get_db)):
     """Crea una nueva tabla de reglas y puntos para un formato."""
     nuevo_ruleset = FormatRuleset(
         id=str(uuid.uuid4()),
@@ -93,29 +100,30 @@ def create_ruleset(ruleset_in: FormatRulesetCreate):
         kill_points=ruleset_in.kill_points,
         allows_custom_achievements=ruleset_in.allows_custom_achievements
     )
-    fake_rulesets_db.append(nuevo_ruleset)
+    repo = FormatRulesetRepository(db)
+    repo.save(nuevo_ruleset)
     return nuevo_ruleset
 
 @app.post("/events/register")
-def register_to_event(data: EventRegistrationRequest):
-    # Aquí irá la magia...
-    event=next((e for e in fake_events_db if e.join_code == data.join_code), None)
+def register_to_event(data: EventRegistrationRequest, db: Session = Depends(get_db)):
+    repo = EventRepository(db)
+    event = repo.get_by_join_code(data.join_code)
     if not event:
         raise HTTPException(status_code=404, detail="Evento no encontrado")
     if event.status != EventStatus.PENDING:
         raise HTTPException(status_code=400, detail="El evento ya ha comenzado o ha finalizado")
     if data.user_id not in event.players:
         event.players.append(data.user_id)
+        # SQLAlchemy and dict mutability require care, but we replace the entire object logic for saving.
+        # Ensure we don't just mutate the dict implicitly if it causes tracking issues, but our mapper handles it.
         event.player_status[data.user_id] = PlayerStatus.ACTIVE
+        repo.save(event)
     return event
 
 @app.get("/events/organizer/{organizer_id}", response_model=List[Event])
-def get_events_by_organizer(organizer_id: str):
+def get_events_by_organizer(organizer_id: str, db: Session = Depends(get_db)):
     """
     Lista todos los torneos que pertenecen a un organizador específico.
     """
-    organizer_events = [
-        event for event in fake_events_db
-        if event.organizer_id == organizer_id
-    ]
-    return organizer_events
+    repo = EventRepository(db)
+    return repo.get_by_organizer(organizer_id)

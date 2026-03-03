@@ -1,23 +1,47 @@
 import pytest
-from fastapi.testclient import TestClient
-from presentation.main import app
-from infrastructure.database import fake_users_db, fake_events_db, fake_rulesets_db
-from infrastructure.seed import seed_test_data
-
-client = TestClient(app)
+from datetime import datetime, UTC
+import uuid
+from domain.entities import Event, FormatRuleset, User, EventStatus, PlayerStatus
+from infrastructure.repositories import EventRepository, UserRepository, FormatRulesetRepository
 
 @pytest.fixture
-def clean_db():
-    fake_users_db.clear()
-    fake_events_db.clear()
-    fake_rulesets_db.clear()
-    seed_test_data()
-    yield
-    fake_users_db.clear()
-    fake_events_db.clear()
-    fake_rulesets_db.clear()
+def setup_api_data(db_session):
+    u_repo = UserRepository(db_session)
+    e_repo = EventRepository(db_session)
+    r_repo = FormatRulesetRepository(db_session)
 
-def test_generate_round_endpoint(clean_db):
+    # 1. Crear usuarios
+    user_ids = []
+    for i in range(4):
+        u = User(id=str(uuid.uuid4()), alias=f"User{i}", email=f"user{i}@test.com")
+        u_repo.save(u)
+        user_ids.append(u.id)
+
+    # 2. Crear Ruleset
+    rs = FormatRuleset(
+        id="test-ruleset-123",
+        name="Casual Commander",
+        win_points=3, draw_points=1, kill_points=1, allows_custom_achievements=True
+    )
+    r_repo.save(rs)
+
+    # 3. Crear Evento
+    ev = Event(
+        id="test-event-123",
+        title="Torneo de Prueba Alpha",
+        organizer_id=user_ids[0],
+        ruleset_id=rs.id,
+        join_code="MTG99",
+        players=user_ids,
+        status=EventStatus.ACTIVE,
+        created_at=datetime.now(UTC),
+        rounds=[],
+        player_status={uid: PlayerStatus.ACTIVE for uid in user_ids}
+    )
+    e_repo.save(ev)
+    return {"event_id": ev.id, "players": user_ids}
+
+def test_generate_round_endpoint(client, setup_api_data):
     event_id = "test-event-123"
     response = client.post(f"/matchmaking/events/{event_id}/generate-round")
     assert response.status_code == 200
@@ -25,17 +49,17 @@ def test_generate_round_endpoint(clean_db):
     assert "round" in data
     assert data["status"] == "pairing"
 
-def test_generate_round_not_found(clean_db):
+def test_generate_round_not_found(client, setup_api_data):
     response = client.post("/matchmaking/events/non-existent/generate-round")
     assert response.status_code == 404
 
-def test_get_event_endpoint(clean_db):
+def test_get_event_endpoint(client, setup_api_data):
     event_id = "test-event-123"
     response = client.get(f"/matchmaking/events/{event_id}")
     assert response.status_code == 200
     assert response.json()["id"] == event_id
 
-def test_get_active_round_endpoint(clean_db):
+def test_get_active_round_endpoint(client, setup_api_data):
     event_id = "test-event-123"
     # Primero generamos una ronda
     client.post(f"/matchmaking/events/{event_id}/generate-round")
@@ -44,12 +68,12 @@ def test_get_active_round_endpoint(clean_db):
     assert response.status_code == 200
     assert response.json()["event_id"] == event_id
 
-def test_get_active_round_no_rounds(clean_db):
+def test_get_active_round_no_rounds(client, setup_api_data):
     event_id = "test-event-123"
     response = client.get(f"/matchmaking/events/{event_id}/active-round")
     assert response.status_code == 400 # Error porque no hay rondas
 
-def test_report_winner_endpoint(clean_db):
+def test_report_winner_endpoint(client, setup_api_data):
     event_id = "test-event-123"
     # 1. Generar ronda
     gen_resp = client.post(f"/matchmaking/events/{event_id}/generate-round")
@@ -64,7 +88,7 @@ def test_report_winner_endpoint(clean_db):
     assert response.status_code == 200
     assert response.json()["alias"] is not None
 
-def test_report_winner_invalid_player(clean_db):
+def test_report_winner_invalid_player(client, setup_api_data):
     event_id = "test-event-123"
     gen_resp = client.post(f"/matchmaking/events/{event_id}/generate-round")
     pod_id = gen_resp.json()["round"]["pods"][0]["id"]
@@ -73,21 +97,23 @@ def test_report_winner_invalid_player(clean_db):
     response = client.post(f"/matchmaking/pods/{pod_id}/report-winner", json=report_data)
     assert response.status_code == 400
 
-def test_get_leaderboard_endpoint(clean_db):
+def test_get_leaderboard_endpoint(client, setup_api_data, db_session):
     event_id = "test-event-123"
     # Generar y finalizar ronda
     gen_resp = client.post(f"/matchmaking/events/{event_id}/generate-round")
     round_id = gen_resp.json()["round"]["id"]
     
     # Marcamos la ronda como terminada para que el leaderboard la cuente
-    event = next(e for e in fake_events_db if e.id == event_id)
+    repo = EventRepository(db_session)
+    event = repo.get_by_id(event_id)
     event.rounds[0].is_active = False
+    repo.save(event)
     
     response = client.get(f"/matchmaking/events/{event_id}/leaderboard")
     assert response.status_code == 200
     assert isinstance(response.json(), list)
 
-def test_report_draw_endpoint(clean_db):
+def test_report_draw_endpoint(client, setup_api_data):
     event_id = "test-event-123"
     gen_resp = client.post(f"/matchmaking/events/{event_id}/generate-round")
     pod_id = gen_resp.json()["round"]["pods"][0]["id"]
@@ -95,3 +121,57 @@ def test_report_draw_endpoint(clean_db):
     response = client.post(f"/matchmaking/pods/{pod_id}/report-draw")
     assert response.status_code == 200
     assert "Empate reportado" in response.json()["message"]
+
+def test_drop_player_endpoint(client, setup_api_data):
+    """Prueba descartar un jugador de un evento mediante status change."""
+    event_id = "test-event-123"
+    # Tomamos un jugador
+    users = setup_api_data["players"]
+    player_id = users[1]
+    
+    response = client.post(
+        f"/matchmaking/events/{event_id}/change_player_status",
+        json={"player_id": player_id, "status": PlayerStatus.DROPPED.value}
+    )
+    assert response.status_code == 200
+    assert "cambiado a" in response.json()["message"]
+
+def test_drop_player_not_found_event(client, setup_api_data):
+    """Prueba el comportamiento de descartar cuando no existe el evento"""
+    users = setup_api_data["players"]
+    player_id = users[1]
+    response = client.post(
+        f"/matchmaking/events/fake_fake/change_player_status",
+        json={"player_id": player_id, "status": PlayerStatus.DROPPED.value}
+    )
+    assert response.status_code == 404
+
+def test_drop_player_not_found_player(client, setup_api_data):
+    """Prueba el comportamiento de descartar a un jugador no registrado"""
+    event_id = "test-event-123"
+    response = client.post(
+        f"/matchmaking/events/{event_id}/change_player_status",
+        json={"player_id": "none_user", "status": PlayerStatus.DROPPED.value}
+    )
+    # HTTP 404 Jugador no encontrado
+    assert response.status_code == 404
+
+def test_finish_event_endpoint(client, setup_api_data):
+    """Añade test para cerrar el evento"""
+    event_id = "test-event-123"
+    response = client.post(f"/matchmaking/events/{event_id}/close-event")
+    assert response.status_code == 200
+    assert response.json()["status"] == EventStatus.COMPLETED.value
+
+def test_finish_event_already_ended(client, setup_api_data, db_session):
+    event_id = "test-event-123"
+    repo = EventRepository(db_session)
+    event = repo.get_by_id(event_id)
+    event.status = EventStatus.COMPLETED
+    repo.save(event)
+
+    response = client.post(f"/matchmaking/events/{event_id}/change_player_status",
+        json={"player_id": setup_api_data["players"][0], "status": PlayerStatus.DROPPED.value}
+    )
+    # No se puede cambiar estado en evento ya acabado
+    assert response.status_code == 400

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 
-function PublicView({ eventId }) {
+function PublicView({ eventId, onBack }) {
     const [leaderboard, setLeaderboard] = useState([])
     const [loading, setLoading] = useState(true)
 
@@ -30,6 +30,18 @@ function PublicView({ eventId }) {
 
     return (
         <main className="glass-panel">
+            {onBack && (
+                <div style={{ marginBottom: '1.5rem', display: 'flex' }}>
+                    <button
+                        className="primary-button"
+                        onClick={onBack}
+                        style={{ padding: '0.5rem 1rem', fontSize: '0.9rem', border: '1px solid var(--accent-primary)' }}
+                    >
+                        ← Volver
+                    </button>
+                    <h2 style={{ margin: '0 0 0 1rem', display: 'flex', alignItems: 'center' }}>Clasificación Pública</h2>
+                </div>
+            )}
             {loading ? (
                 <div className="loading">Cargando clasificación...</div>
             ) : (

@@ -29,7 +29,10 @@ function App() {
           onBack={() => setCurrentView('dashboard')}
         />;
       case 'public':
-        return <PublicView eventId={currentEventId} />;
+        return <PublicView
+          eventId={currentEventId}
+          onBack={() => setCurrentView('dashboard')}
+        />;
       default:
         return <OrganizerDashboard organizerId={LOGGED_IN_ORGANIZER} onSelectEvent={handleSelectEvent} />;
     }

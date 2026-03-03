@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 
-function AdminView({ eventId }) {
+function AdminView({ eventId, onBack }) {
 
     const [eventData, setEventData] = useState(null);
 
@@ -162,9 +162,18 @@ function AdminView({ eventId }) {
     const activeRound = eventData?.rounds?.[eventData.rounds.length - 1];
     return (
         <main className="glass-panel admin-dashboard">
-            <header className="admin-header">
-                <h2>Panel de Control del Organizador</h2>
-                <div className="event-badge">
+            <header className="admin-header" style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                {onBack && (
+                    <button
+                        className="primary-button"
+                        onClick={onBack}
+                        style={{ padding: '0.5rem 1rem', fontSize: '0.9rem', border: '1px solid var(--accent-secondary)' }}
+                    >
+                        ← Volver
+                    </button>
+                )}
+                <h2 style={{ margin: 0 }}>Panel de Control del Organizador</h2>
+                <div className="event-badge" style={{ marginLeft: 'auto' }}>
                     <span className="event-id-label">ID Evento</span>
                     <span className="event-id-value">{eventId}</span>
                 </div>

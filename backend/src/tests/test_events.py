@@ -1,17 +1,9 @@
 import pytest
-from fastapi.testclient import TestClient
 from pydantic import ValidationError
-
-from presentation.main import app, fake_events_db, fake_rulesets_db
+from datetime import datetime, UTC
 from domain.entities import Event, FormatRuleset, EventStatus, PlayerStatus
 from application.schemas import EventCreate, FormatRulesetCreate
-
-client = TestClient(app)
-
-def setup_function():
-    """Limpia la base de datos falsa antes de cada test."""
-    fake_events_db.clear()
-    fake_rulesets_db.clear()
+from infrastructure.repositories import EventRepository
 
 # --- TESTS PARA REGLAS (FormatRulesets) ---
 
@@ -61,7 +53,7 @@ def test_application_event_schema_validation():
     with pytest.raises(ValidationError):
         EventCreate(title="Test", organizer_id="123", ruleset_id="456") # 'Test' tiene 4 letras
 
-def test_presentation_create_event_endpoint():
+def test_presentation_create_event_endpoint(client, db_session):
     """Prueba el endpoint /events/ simulando una llamada HTTP."""
     payload = {
         "title": "Torneo de Fin de Semana",
@@ -80,9 +72,11 @@ def test_presentation_create_event_endpoint():
     assert "join_code" in data
     assert len(data["join_code"]) == 6
     assert data["players"] == []
-    assert len(fake_events_db) == 1
+    
+    events = EventRepository(db_session).list_all()
+    assert len(events) == 1
 
-def test_presentation_rgister_to_event_success():
+def test_presentation_rgister_to_event_success(client, db_session):
     """Prueba que un usuario se puede registrar a un evento."""
     fake_event = Event(
         id="evt-1",
@@ -90,10 +84,12 @@ def test_presentation_rgister_to_event_success():
         organizer_id="org-1",
         ruleset_id="ruleset-1",
         join_code="A1B2C3",
-        players=[]
-        
+        players=[],
+        rounds=[],
+        created_at=datetime.now(UTC),
+        player_status={}
     )
-    fake_events_db.append(fake_event)
+    EventRepository(db_session).save(fake_event)
     payload = {
         "user_id": "user-123",
         "join_code": "A1B2C3"
@@ -103,7 +99,7 @@ def test_presentation_rgister_to_event_success():
     data = response.json()
     assert data["players"] == ["user-123"]
 
-def test_presentation_register_to_event_not_found():
+def test_presentation_register_to_event_not_found(client, db_session):
     """Prueba que un usuario no se puede registrar a un evento no encontrado."""
     payload = {
         "user_id": "user-123",
@@ -114,7 +110,7 @@ def test_presentation_register_to_event_not_found():
     data = response.json()
     assert data["detail"] == "Evento no encontrado"
 
-def test_presentation_register_to_event_already_registered():
+def test_presentation_register_to_event_already_registered(client, db_session):
     """Prueba que un usuario no se puede registrar a un evento si ya está registrado."""
     fake_event = Event(
         id="evt-1",
@@ -122,9 +118,12 @@ def test_presentation_register_to_event_already_registered():
         organizer_id="org-1",
         ruleset_id="ruleset-1",
         join_code="A1B2C3",
-        players=["user-123"]
+        players=["user-123"],
+        rounds=[],
+        created_at=datetime.now(UTC),
+        player_status={"user-123": PlayerStatus.ACTIVE}
     )
-    fake_events_db.append(fake_event)
+    EventRepository(db_session).save(fake_event)
     payload = {
         "user_id": "user-123",
         "join_code": "A1B2C3"
@@ -134,7 +133,7 @@ def test_presentation_register_to_event_already_registered():
     data = response.json()
     assert data["players"] == ["user-123"]
 
-def test_presentation_register_to_event_already_started():
+def test_presentation_register_to_event_already_started(client, db_session):
     """Prueba que un usuario no se puede registrar a un evento si ya ha comenzado."""
     fake_event = Event(
         id="evt-1",
@@ -143,9 +142,12 @@ def test_presentation_register_to_event_already_started():
         ruleset_id="ruleset-1",
         join_code="A1B2C3",
         players=["user-123"],
+        rounds=[],
+        created_at=datetime.now(UTC),
+        player_status={"user-123": PlayerStatus.ACTIVE},
         status=EventStatus.ACTIVE
     )
-    fake_events_db.append(fake_event)
+    EventRepository(db_session).save(fake_event)
     payload = {
         "user_id": "user-123",
         "join_code": "A1B2C3"
@@ -155,7 +157,7 @@ def test_presentation_register_to_event_already_started():
     data = response.json()
     assert data["detail"] == "El evento ya ha comenzado o ha finalizado"
 
-def test_presentation_register_to_event_already_finished():
+def test_presentation_register_to_event_already_finished(client, db_session):
     """Prueba que un usuario no se puede registrar a un evento si ya ha finalizado."""
     fake_event = Event(
         id="evt-1",
@@ -164,9 +166,12 @@ def test_presentation_register_to_event_already_finished():
         ruleset_id="ruleset-1",
         join_code="A1B2C3",
         players=["user-123"],
+        rounds=[],
+        created_at=datetime.now(UTC),
+        player_status={"user-123": PlayerStatus.ACTIVE},
         status=EventStatus.COMPLETED
     )
-    fake_events_db.append(fake_event)
+    EventRepository(db_session).save(fake_event)
     payload = {
         "user_id": "user-123",
         "join_code": "A1B2C3"
@@ -176,35 +181,44 @@ def test_presentation_register_to_event_already_finished():
     data = response.json()
     assert data["detail"] == "El evento ya ha comenzado o ha finalizado"
 
-def test_presentation_get_events_by_organizer_success():
+def test_presentation_get_events_by_organizer_success(client, db_session):
     """Prueba que el organizador puede recuperar sus eventos correctamente."""
+    repo = EventRepository(db_session)
     # Añadimos un par de eventos a la base de datos falsa
-    fake_events_db.extend([
-        Event(
+    now = datetime.now(UTC)
+    repo.save(Event(
             id="evt-org-1",
             title="Torneo Organizer 1",
             organizer_id="org-555",
             ruleset_id="ruleset-1",
             join_code="ORG555",
-            players=[]
-        ),
-        Event(
+            players=[],
+            rounds=[],
+            created_at=now,
+            player_status={}
+        ))
+    repo.save(Event(
             id="evt-org-2",
             title="Torneo Organizer 2",
             organizer_id="org-555",
             ruleset_id="ruleset-1",
             join_code="ORG556",
-            players=[]
-        ),
-        Event(
+            players=[],
+            rounds=[],
+            created_at=now,
+            player_status={}
+        ))
+    repo.save(Event(
             id="evt-org-3",
             title="Torneo Otro",
             organizer_id="org-666",
             ruleset_id="ruleset-1",
             join_code="ORG666",
-            players=[]
-        )
-    ])
+            players=[],
+            rounds=[],
+            created_at=now,
+            player_status={}
+        ))
     
     response = client.get("/events/organizer/org-555")
     assert response.status_code == 200
@@ -213,7 +227,7 @@ def test_presentation_get_events_by_organizer_success():
     assert data[0]["organizer_id"] == "org-555"
     assert data[1]["organizer_id"] == "org-555"
 
-def test_presentation_get_events_by_organizer_empty():
+def test_presentation_get_events_by_organizer_empty(client, db_session):
     """Prueba que devuelve una lista vacía si el organizador no tiene eventos."""
     response = client.get("/events/organizer/org-no-events")
     assert response.status_code == 200
