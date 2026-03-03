@@ -16,11 +16,27 @@ async def generate_round_endpoint(event_id: str):
     if not event:
         raise HTTPException(status_code=404, detail="Evento no encontrado")
     
-    players=[user for user in fake_users_db if user.id in event.players and event.player_status[user.id] == PlayerStatus.ACTIVE]
+    players=[user for user in fake_users_db if user.id in event.players and event.player_status.get(user.id, PlayerStatus.ACTIVE) == PlayerStatus.ACTIVE]
     
     if len(players)<3:
         raise HTTPException(status_code=400, detail="No hay suficientes jugadores para generar una ronda")
-    new_round=create_round(event_id, event.round_number+1, players)
+        
+    # Obtener Leaderboard para los puntos de emparejamiento
+    try:
+        leaderboard_data = calculate_leaderboard(event_id)
+        player_scores = {pid: points for pid, points in leaderboard_data}
+    except HTTPException:
+        player_scores = {pid: 0 for pid in event.players} # Por si falla o es la 1a ronda
+        
+    # Recopilar Historial de partidas previas para evitar repeticiones
+    player_history = {pid: [] for pid in event.players}
+    for r in event.rounds:
+        for pod in r.pods:
+            for pid in pod.players_ids:
+                if pid in player_history:
+                    player_history[pid].extend([opp for opp in pod.players_ids if opp != pid])
+                    
+    new_round=create_round(event_id, event.round_number+1, players, player_scores, player_history)
     event.rounds.append(new_round)
     event.round_number+=1
 
@@ -54,7 +70,8 @@ def get_event(event_id: str):
         "status": event.status,
         "join_code": event.join_code,
         "created_at": event.created_at,
-        "players": enriched_players
+        "players": enriched_players,
+        "rounds": event.rounds
     }
 
 @router.get("/events/{event_id}/active-round")
@@ -132,3 +149,39 @@ def get_leaderboard(event_id: str):
         
     return final_leaderboard
 
+@router.post("/events/{event_id}/close-round")
+def close_active_round(event_id: str):
+    # 1. Buscamos el Torneo (Evento)
+    event = next((e for e in fake_events_db if e.id == event_id), None)
+    if not event:
+        raise HTTPException(status_code=404, detail="Evento no encontrado.")
+    # 2. Buscamos la única ronda activa
+    active_round = next((r for r in event.rounds if r.is_active), None)
+    if not active_round:
+        raise HTTPException(status_code=400, detail="No hay ninguna ronda activa para cerrar.")
+    # 3. Cerramos el chiringuito
+    active_round.is_active = False
+    # (Opcional) Aquí iría el reparto de puntos:
+    # Si quisieras, podrías coger 'event.standings' y sumar
+    # +3 al ganador o +1 a todos al empatar.
+    # Transformamos el dataclass a diccionario usando asdict
+    from dataclasses import asdict
+    return {"message": f"Ronda {active_round.round_number} cerrada con éxito.", "round": asdict(active_round)}
+
+
+@router.post("/events/{event_id}/close-event")
+def close_event(event_id: str):
+    # 1. Buscamos el Torneo (Evento)
+    event = next((e for e in fake_events_db if e.id == event_id), None)
+    if not event:
+        raise HTTPException(status_code=404, detail="Evento no encontrado.")
+    
+    # 2. Comprobamos si hay rondas activas colgando
+    active_round = next((r for r in event.rounds if r.is_active), None)
+    if active_round:
+        raise HTTPException(status_code=400, detail="No se puede cerrar el evento: hay una ronda activa en curso.")
+        
+    # 3. Cerramos el evento
+    event.status = EventStatus.COMPLETED
+    
+    return {"message": "El torneo ha finalizado oficialmente.", "status": event.status}

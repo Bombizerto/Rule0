@@ -34,10 +34,10 @@ function PublicView({ eventId }) {
                 <div className="loading">Cargando clasificación...</div>
             ) : (
                 <div className="leaderboard-list">
-                    <div className="leaderboard-header leaderboard-row" style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                        <span>Pos</span>
-                        <span>Jugador</span>
-                        <span>Puntos</span>
+                    <div className="leaderboard-header leaderboard-row" style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px', paddingBottom: '0.5rem' }}>
+                        <span style={{ textAlign: 'center' }}>Pos</span>
+                        <span style={{ textAlign: 'left', paddingLeft: '0.5rem' }}>Jugador</span>
+                        <span style={{ textAlign: 'right' }}>Puntos</span>
                     </div>
                     {leaderboard.map((item, index) => (
                         <div key={item.player_id} className="leaderboard-row">

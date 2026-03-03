@@ -1,0 +1,15 @@
+meta {
+  name: Get Organizer Events
+  type: http
+  seq: 14
+}
+
+get {
+  url: {{baseUrl}}/events/organizer/:organizer_id
+  body: none
+  auth: none
+}
+
+params:path {
+  organizer_id: test-org-123
+}

@@ -109,3 +109,13 @@ def register_to_event(data: EventRegistrationRequest):
         event.player_status[data.user_id] = PlayerStatus.ACTIVE
     return event
 
+@app.get("/events/organizer/{organizer_id}", response_model=List[Event])
+def get_events_by_organizer(organizer_id: str):
+    """
+    Lista todos los torneos que pertenecen a un organizador específico.
+    """
+    organizer_events = [
+        event for event in fake_events_db
+        if event.organizer_id == organizer_id
+    ]
+    return organizer_events

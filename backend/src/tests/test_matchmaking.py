@@ -106,3 +106,39 @@ def test_run_casual_matchmaking():
     # Verificamos que todos los jugadores originales están presentes
     all_assigned_players = [p for pod in pods for p in pod]
     assert sorted([u.id for u in all_assigned_players]) == sorted([u.id for u in players])
+
+from domain.services.matchmaking import advanced_swiss_matchmaking
+
+def test_advanced_swiss_matchmaking():
+    """Prueba que el matchmaking suizo agrupa por puntos y evita repeticiones."""
+    # 8 jugadores, 2 mesas de 4
+    players = [User(id=f"P{i}", alias=f"P{i}") for i in range(1, 9)]
+    
+    # Puntos: P1 a P4 tienen 3 puntos. P5 a P8 tienen 0 puntos.
+    player_scores = {
+        "P1": 3, "P2": 3, "P3": 3, "P4": 3,
+        "P5": 0, "P6": 0, "P7": 0, "P8": 0
+    }
+    
+    # Historial: P1 ya ha jugado con P2, P3 y P4. (El algoritmo intentará separarlos)
+    player_history = {
+        "P1": ["P2", "P3", "P4"] # P1 odia jugar con P2, P3, P4 de nuevo
+    }
+    
+    pods = advanced_swiss_matchmaking(players, player_scores, player_history)
+    
+    assert len(pods) == 2
+    assert len(pods[0]) == 4
+    assert len(pods[1]) == 4
+    
+    # Al menos una mesa debería tener a P1 separado de P2, P3, P4 en la medida de lo posible
+    # Debido al 'search_depth', P1 jugará con P5, P6, P7 (los de 0 puntos) para no repetir,
+    # rompiendo el empate suizo en favor de no repetir mesa.
+    
+    pod_con_p1 = next(pod for pod in pods if any(p.id == "P1" for p in pod))
+    pod_ids = [p.id for p in pod_con_p1]
+    
+    # Comprobar que P2, P3 y P4 no están en la mesa de P1 
+    # (o al menos hay menos de 3 de ellos, garantizando que el historial actuó)
+    repeticiones = sum(1 for p in pod_ids if p in ["P2", "P3", "P4"])
+    assert repeticiones < 3, "El algoritmo no evitó las repeticiones del historial"

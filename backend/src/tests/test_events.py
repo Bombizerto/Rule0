@@ -175,3 +175,49 @@ def test_presentation_register_to_event_already_finished():
     assert response.status_code == 400
     data = response.json()
     assert data["detail"] == "El evento ya ha comenzado o ha finalizado"
+
+def test_presentation_get_events_by_organizer_success():
+    """Prueba que el organizador puede recuperar sus eventos correctamente."""
+    # Añadimos un par de eventos a la base de datos falsa
+    fake_events_db.extend([
+        Event(
+            id="evt-org-1",
+            title="Torneo Organizer 1",
+            organizer_id="org-555",
+            ruleset_id="ruleset-1",
+            join_code="ORG555",
+            players=[]
+        ),
+        Event(
+            id="evt-org-2",
+            title="Torneo Organizer 2",
+            organizer_id="org-555",
+            ruleset_id="ruleset-1",
+            join_code="ORG556",
+            players=[]
+        ),
+        Event(
+            id="evt-org-3",
+            title="Torneo Otro",
+            organizer_id="org-666",
+            ruleset_id="ruleset-1",
+            join_code="ORG666",
+            players=[]
+        )
+    ])
+    
+    response = client.get("/events/organizer/org-555")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 2
+    assert data[0]["organizer_id"] == "org-555"
+    assert data[1]["organizer_id"] == "org-555"
+
+def test_presentation_get_events_by_organizer_empty():
+    """Prueba que devuelve una lista vacía si el organizador no tiene eventos."""
+    response = client.get("/events/organizer/org-no-events")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) == 0
+

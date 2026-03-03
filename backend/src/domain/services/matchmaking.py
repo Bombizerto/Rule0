@@ -38,3 +38,71 @@ def run_casual_matchmaking(players: List[User]):
     for table in tables:
         finalPods.append(assign_seats(table))
     return finalPods
+
+from typing import Dict
+def advanced_swiss_matchmaking(players: List[User], player_scores: Dict[str, int], player_history: Dict[str, List[str]]):
+    """
+    Algoritmo Suizo para juegos Multijugador (EDH).
+    """
+    t3, t4, t5 = calculate_tables(len(players))
+    
+    # 1. Mezclamos primero
+    random.shuffle(players)
+    
+    # 2. Ordenamos por puntos (de mayor a menor)
+    sorted_players = sorted(players, key=lambda p: player_scores.get(p.id, 0), reverse=True)
+    
+    groups = []
+    unpaired_players = sorted_players.copy()
+    
+    while unpaired_players:
+        table_size = 0
+        if t4 > 0:
+            table_size = 4
+            t4 -= 1
+        elif t3 > 0:
+            table_size = 3
+            t3 -= 1
+        elif t5 > 0:
+            table_size = 5
+            t5 -= 1
+            
+        if table_size == 0 or len(unpaired_players) < table_size:
+            # Los metemos al ultimo grupo si sobra algo raro, o creamos mesa
+            if len(unpaired_players) > 0 and groups:
+                groups[-1].extend(unpaired_players)
+            elif len(unpaired_players) > 0:
+                groups.append(unpaired_players)
+            break
+            
+        current_table = [unpaired_players.pop(0)] 
+        
+        while len(current_table) < table_size and unpaired_players:
+            lowest_penalty = 999
+            best_index = 0
+            
+            search_depth = min(5, len(unpaired_players))
+            
+            for i in range(search_depth):
+                candidate = unpaired_players[i]
+                penalty = 0
+                
+                for seated_player in current_table:
+                    if seated_player.id in player_history.get(candidate.id, []):
+                        penalty += 1
+                
+                if penalty < lowest_penalty:
+                    lowest_penalty = penalty
+                    best_index = i
+                    
+                if penalty == 0:
+                    break 
+            
+            current_table.append(unpaired_players.pop(best_index))
+            
+        groups.append(current_table)
+        
+    finalPods = []
+    for table in groups:
+        finalPods.append(assign_seats(table))
+    return finalPods

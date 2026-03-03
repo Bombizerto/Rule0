@@ -11,14 +11,15 @@ def seed_test_data():
     fake_rulesets_db.clear()
 
     # 2. Crear Usuarios (4 para una mesa perfecta)
-    names = ["Aidan", "Bobi", "Lucas", "Dani", "Elena"]
-    for name in names:
-        u = User(id=str(uuid.uuid4()), alias=name, email=f"{name.lower()}@rule0.com")
+    names = ["Aidan", "Bobi", "Lucas", "Dani", "Elena", "Juan", "Maria", "Pedro", "Ana", "Luis", "Carlos", "María", "Juan", "Ana", "Luis", "Carlos", "María", "Juan", "Ana", "Luis","Papu"]
+    for i, name in enumerate(names):
+        user_id = "test-org-123" if i == 0 else str(uuid.uuid4())
+        u = User(id=user_id, alias=name, email=f"{name.lower()}@rule0.com")
         fake_users_db.append(u)
 
     # 3. Crear Ruleset
     rs = FormatRuleset(
-        id=str(uuid.uuid4()),
+        id="test-ruleset-123",
         name="Casual Commander",
         win_points=3,
         draw_points=1,

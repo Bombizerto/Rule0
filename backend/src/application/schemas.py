@@ -46,12 +46,30 @@ class EventPlayerResponse(BaseModel):
     alias: str
     status: str
 
+class PodResponse(BaseModel):
+    id: str
+    table_number: int
+    players_ids: List[str]
+    winner_id: Optional[str] = None
+    is_draw: bool = False
+    model_config = ConfigDict(from_attributes=True)
+
+class RoundResponse(BaseModel):
+    id: str
+    event_id: str
+    round_number: int
+    pods: List[PodResponse]
+    is_active: bool = True
+    model_config = ConfigDict(from_attributes=True)
+
+
 class EventResponse(EventBase):
     """Datos que devolvemos al frontend sobre un evento."""
     id: str
     status: EventStatus
     join_code: str
     players: List[EventPlayerResponse]
+    rounds: List[RoundResponse]
     created_at: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)
 
@@ -65,4 +83,5 @@ class PodWinnerReport(BaseModel):
 class PlayerStatusUpdate(BaseModel):
     player_id: str
     status: PlayerStatus
+
 
