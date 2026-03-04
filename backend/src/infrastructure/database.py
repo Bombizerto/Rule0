@@ -1,9 +1,15 @@
 from typing import List
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 from domain.entities import User, Event, FormatRuleset
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///./rule0.db"
+# Encontramos la raíz del proyecto para que el path sea siempre el mismo
+# infrastructure/database.py -> infrastructure -> src
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_PATH = os.path.join(BASE_DIR, "rule0.db")
+SQLALCHEMY_DATABASE_URL = f"sqlite:///{DB_PATH}"
+
 # Para SQLite es importante setear check_same_thread=False en FastAPI
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}

@@ -14,23 +14,25 @@ function PlayerList({ players, handleStatusChange }) {
         <React.Fragment>
             {players.map((player) => {
                 const st = player.status.toLowerCase();
+                const isDropped = st === 'dropped' || st === 'self_dropped';
+
                 return (
                     <div key={player.id} className={`player-row-card glass-panel-inner hover-lift status-${st}`}>
                         <div className="player-info-col">
                             <h4>{player.alias}</h4>
                             <span className={`status-badge ${st}`}>
-                                {st.toUpperCase()}
+                                {st === 'self_dropped' ? 'VOLUNTARY DROP' : st.toUpperCase()}
                             </span>
                         </div>
                         <div className="player-actions-col">
                             <button className={`action-btn btn-pause ${st === 'paused' ? 'is-paused' : ''}`}
-                                onClick={() => handleStatusChange(player.id, player.status, 'PAUSED')}>
+                                onClick={() => handleStatusChange(player.id, player.status, 'PAUSED')}
+                                disabled={isDropped}>
                                 {st === 'paused' ? '▶ Reanudar' : '⏸ Pausar'}
                             </button>
-                            <button className={`action-btn btn-drop ${st === 'dropped' ? 'is-dropped' : ''}`}
-                                onClick={() => handleStatusChange(player.id, player.status, 'dropped')}
-                                disabled={st === 'dropped'}>
-                                {st === 'dropped' ? '💥 Eliminado' : '🔥 Drop'}
+                            <button className={`action-btn btn-drop ${isDropped ? 'is-dropped' : ''}`}
+                                onClick={() => handleStatusChange(player.id, player.status, isDropped ? 'active' : 'dropped')}>
+                                {isDropped ? '♻️ Reactivar' : '🔥 Drop'}
                             </button>
                         </div>
                     </div>

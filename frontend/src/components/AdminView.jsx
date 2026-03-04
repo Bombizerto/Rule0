@@ -3,9 +3,15 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 import PodCard from './PodCard';
 import PlayerList from './PlayerList';
+import Leaderboard from './Leaderboard';
+
 
 function AdminView({ eventId, onBack }) {
     const [eventData, setEventData] = useState(null);
+    const [refreshLeaderboard, setRefreshLeaderboard] = useState(0);
+
+    const triggerLeaderboardRefresh = () => setRefreshLeaderboard(prev => prev + 1);
+
 
     useEffect(() => {
         const fetchEventData = async () => {
@@ -67,7 +73,9 @@ function AdminView({ eventId, onBack }) {
                     } : p)
                 } : r)
             }));
+            triggerLeaderboardRefresh();
         } catch (err) {
+
             console.error(err);
             alert("Error al reportar victoria");
         }
@@ -94,6 +102,7 @@ function AdminView({ eventId, onBack }) {
                     } : p)
                 } : r)
             }));
+            triggerLeaderboardRefresh();
         } catch (err) {
             console.error(err);
             alert("Error al reportar empate");
@@ -102,11 +111,18 @@ function AdminView({ eventId, onBack }) {
 
     const handleStatusChange = async (playerId, currentStatus, action) => {
         try {
-            if (currentStatus === action) {
-                alert("El estado del jugador ya es el mismo que el seleccionado");
+            let newStatus;
+
+            if (action === "PAUSED") {
+                newStatus = currentStatus === "paused" ? "active" : "paused";
+            } else {
+                newStatus = action.toLowerCase(); // 'dropped', 'active', etc.
+            }
+
+            if (currentStatus === newStatus) {
                 return;
             }
-            const newstatus = action === "PAUSED" && currentStatus === "paused" ? "active" : action.toLowerCase();
+
             const response = await fetch(`http://127.0.0.1:8000/matchmaking/events/${eventId}/change_player_status`, {
                 method: 'POST',
                 headers: {
@@ -114,7 +130,7 @@ function AdminView({ eventId, onBack }) {
                 },
                 body: JSON.stringify({
                     player_id: playerId,
-                    status: newstatus
+                    status: newStatus
                 }),
             });
 
@@ -122,13 +138,11 @@ function AdminView({ eventId, onBack }) {
                 const error = await response.json();
                 alert(`Error: ${error.detail}`);
             } else {
-                const data = await response.json();
-                alert(`¡Estado del jugador cambiado con éxito! 🎲, ${newstatus}`);
-                console.log("Nuevo estado del jugador:", data);
+                // Actualizar localmente el estado del jugador
                 setEventData(prev => ({
                     ...prev,
                     players: prev.players.map(p =>
-                        p.id === playerId ? { ...p, status: newstatus } : p
+                        p.id === playerId ? { ...p, status: newStatus } : p
                     )
                 }));
             }
@@ -152,8 +166,10 @@ function AdminView({ eventId, onBack }) {
                     ...prev,
                     rounds: prev.rounds.map(r => r.id === activeRound.id ? { ...r, is_active: false } : r)
                 }));
+                triggerLeaderboardRefresh();
             }
         } catch (err) {
+
             console.error("Fallo al cerrar la ronda:", err);
             alert("Error de conexión con el servidor");
         }
@@ -335,7 +351,15 @@ function AdminView({ eventId, onBack }) {
                         </div>
                     </section>
                 )}
+
+                <section className="leaderboard-section fade-in" style={{ marginTop: '2.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '2rem' }}>
+                    <div className="section-header">
+                        <h3 style={{ color: 'var(--accent-primary)' }}>🏆 Clasificación Actual</h3>
+                    </div>
+                    <Leaderboard eventId={eventId} refreshTrigger={refreshLeaderboard} />
+                </section>
             </div>
+
         </main>
     );
 }

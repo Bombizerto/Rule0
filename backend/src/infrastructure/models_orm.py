@@ -13,6 +13,7 @@ class UserModel(Base):
     email = Column(String, nullable=True)
     is_guest = Column(Boolean, default=False)
     role = Column(SQLEnum(Role), default=Role.PLAYER)
+    device_token = Column(String, nullable=True)  # Token de dispositivo para re-login de invitados
     seat_history = Column(JSON, default=dict)
 
 

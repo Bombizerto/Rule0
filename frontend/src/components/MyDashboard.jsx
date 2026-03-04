@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import Leaderboard from './Leaderboard';
+
 
 function MyDashboard({ eventData, playerId, onLogout }) {
     const [loadingAction, setLoadingAction] = useState(false);
     const [actionError, setActionError] = useState(null);
     const [localEventData, setLocalEventData] = useState(eventData);
     const [playerNames, setPlayerNames] = useState({}); // mapa { uuid: alias }
-    const [leaderboard, setLeaderboard] = useState([]);
+    const [refreshLeaderboard, setRefreshLeaderboard] = useState(0);
+
 
     // Cargar el mapa de nombres y el leaderboard al montar
     useEffect(() => {
@@ -18,12 +21,8 @@ function MyDashboard({ eventData, playerId, onLogout }) {
                 setPlayerNames(map);
             })
             .catch(() => { });
-
-        fetch(`http://127.0.0.1:8000/matchmaking/events/${eventData.id}/leaderboard`)
-            .then(r => r.ok ? r.json() : [])
-            .then(data => setLeaderboard(data))
-            .catch(() => { });
     }, [eventData?.id]);
+
 
     if (!localEventData) return null;
 
@@ -43,7 +42,9 @@ function MyDashboard({ eventData, playerId, onLogout }) {
             if (resp.ok) {
                 const data = await resp.json();
                 setLocalEventData(data);
+                setRefreshLeaderboard(prev => prev + 1);
             }
+
         } catch (err) {
             console.error("Error refreshing data:", err);
         }
@@ -108,6 +109,41 @@ function MyDashboard({ eventData, playerId, onLogout }) {
             if (!resp.ok) {
                 const data = await resp.json();
                 throw new Error(data.detail || "Error al rechazar");
+            }
+            await refreshEventData();
+        } catch (err) {
+            setActionError(err.message);
+        } finally {
+            setLoadingAction(false);
+        }
+    };
+
+    const handleSelfStatusChange = async (action) => {
+        const myPlayer = localEventData.players.find(p => p.id === playerId);
+        if (!myPlayer) return;
+
+        let newStatus;
+        if (action === "PAUSE") {
+            newStatus = myPlayer.status === "paused" ? "active" : "paused";
+        } else if (action === "DROP") {
+            if (!window.confirm("¿Seguro que quieres retirarte del torneo? Un administrador deberá reactivarte si quieres volver.")) return;
+            newStatus = "dropped";
+        }
+
+        setLoadingAction(true);
+        setActionError(null);
+        try {
+            const resp = await fetch(`http://127.0.0.1:8000/matchmaking/events/${localEventData.id}/self_change_status`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    player_id: playerId,
+                    status: newStatus
+                })
+            });
+            if (!resp.ok) {
+                const data = await resp.json();
+                throw new Error(data.detail || "Fallo al cambiar estado");
             }
             await refreshEventData();
         } catch (err) {
@@ -227,9 +263,47 @@ function MyDashboard({ eventData, playerId, onLogout }) {
                 </div>
             </div>
 
-            <div className="pod-card">
-                <h3 style={{ color: 'var(--text-primary)', margin: '0 0 0.5rem 0' }}>Torneo: {localEventData.title}</h3>
-                <p style={{ margin: 0, color: 'var(--text-muted)' }}>Status: <span style={{ color: 'var(--accent-secondary)', fontWeight: 'bold' }}>{localEventData.status}</span></p>
+            <div className="pod-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                    <h3 style={{ color: 'var(--text-primary)', margin: '0 0 0.5rem 0' }}>Torneo: {localEventData.title}</h3>
+                    <p style={{ margin: 0, color: 'var(--text-muted)' }}>Status Torneo: <span style={{ color: 'var(--accent-secondary)', fontWeight: 'bold' }}>{localEventData.status.toUpperCase()}</span></p>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                    {(() => {
+                        const myPlayer = localEventData.players.find(p => p.id === playerId);
+                        if (!myPlayer) return null;
+                        const st = myPlayer.status.toLowerCase();
+                        const isDropped = st === 'dropped' || st === 'self_dropped';
+
+                        return (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-end' }}>
+                                <span className={`status-badge ${st}`} style={{ padding: '0.4rem 1rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold' }}>
+                                    TU ESTADO: {st === 'self_dropped' ? 'VOLUNTARY DROP' : st.toUpperCase()}
+                                </span>
+                                {!isDropped && (
+                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                        <button
+                                            className="action-btn btn-pause"
+                                            style={{ padding: '0.3rem 0.8rem', fontSize: '0.75rem' }}
+                                            onClick={() => handleSelfStatusChange('PAUSE')}
+                                            disabled={loadingAction}
+                                        >
+                                            {st === 'paused' ? '▶ Reanudar' : '⏸ Pausar'}
+                                        </button>
+                                        <button
+                                            className="action-btn btn-drop"
+                                            style={{ padding: '0.3rem 0.8rem', fontSize: '0.75rem' }}
+                                            onClick={() => handleSelfStatusChange('DROP')}
+                                            disabled={loadingAction}
+                                        >
+                                            🔥 Abandonar
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )
+                    })()}
+                </div>
             </div>
 
             {currentRound && currentPod ? (
@@ -265,43 +339,11 @@ function MyDashboard({ eventData, playerId, onLogout }) {
                     <p style={{ marginTop: '0.5rem' }}>El organizador aún no ha lanzado tu ronda.</p>
                 </div>
             )}
-            {/* Leaderboard del torneo */}
-            <div style={{ marginTop: '2rem' }}>
-                <h3 style={{ color: 'var(--accent-primary)', marginBottom: '1rem' }}>🏆 Clasificación del Torneo</h3>
-                {leaderboard.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '1.5rem', background: 'var(--bg-card)', borderRadius: '12px', color: 'var(--text-muted)' }}>
-                        <p>Aún no hay rondas completadas.</p>
-                    </div>
-                ) : (
-                    <div className="leaderboard-list">
-                        <div className="leaderboard-header leaderboard-row">
-                            <span style={{ width: '2rem' }}>#</span>
-                            <span style={{ flex: 2 }}>Jugador</span>
-                            <span>Puntos</span>
-                        </div>
-                        {leaderboard.map((entry, i) => (
-                            <div
-                                key={entry.player_id}
-                                className="leaderboard-row"
-                                style={{
-                                    background: entry.player_id === playerId ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
-                                    fontWeight: entry.player_id === playerId ? 'bold' : 'normal'
-                                }}
-                            >
-                                <span style={{ width: '2rem', color: i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? '#cd7f32' : 'var(--text-muted)' }}>
-                                    {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`}
-                                </span>
-                                <span className="player-name" style={{ flex: 2 }}>
-                                    {entry.alias} {entry.player_id === playerId ? '(Tú)' : ''}
-                                </span>
-                                <span className="points" style={{ color: 'var(--accent-primary)', fontWeight: 'bold' }}>
-                                    {entry.points} pts
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-                )}
+            <div style={{ marginTop: '2.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '2rem' }}>
+                <h3 style={{ color: 'var(--accent-primary)', marginBottom: '1.5rem' }}>🏆 Clasificación del Torneo</h3>
+                <Leaderboard eventId={localEventData.id} highlightPlayerId={playerId} refreshTrigger={refreshLeaderboard} />
             </div>
+
 
         </main>
     )

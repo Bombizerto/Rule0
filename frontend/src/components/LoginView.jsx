@@ -20,14 +20,20 @@ function LoginView({ onLoginSuccess }) {
             if (isGuestMode) url = 'http://127.0.0.1:8000/auth/guest_join';
             else if (isRegistering) url = 'http://127.0.0.1:8000/auth/signup';
 
-            const body = isGuestMode
-                ? JSON.stringify({ alias, join_code: joinCode })
-                : JSON.stringify({ alias, password });
+            let bodyObj;
+            if (isGuestMode) {
+                // Recuperar el device_token para ESTE alias concreto (no global)
+                const storedTokens = JSON.parse(localStorage.getItem('rule0_guest_tokens') || '{}');
+                bodyObj = { alias, join_code: joinCode };
+                if (storedTokens[alias]) bodyObj.device_token = storedTokens[alias];
+            } else {
+                bodyObj = { alias, password };
+            }
 
             const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body
+                body: JSON.stringify(bodyObj)
             });
 
             if (!response.ok) {
@@ -36,7 +42,14 @@ function LoginView({ onLoginSuccess }) {
             }
 
             const userData = await response.json();
-            // userData tiene: id, alias, role
+
+            // Si el servidor devuelve un device_token (invitados), guardarlo asociado a este alias
+            if (userData.device_token) {
+                const storedTokens = JSON.parse(localStorage.getItem('rule0_guest_tokens') || '{}');
+                storedTokens[userData.alias] = userData.device_token;
+                localStorage.setItem('rule0_guest_tokens', JSON.stringify(storedTokens));
+            }
+
             onLoginSuccess(userData);
         } catch (err) {
             setError(err.message);

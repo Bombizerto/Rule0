@@ -181,20 +181,44 @@ def guest_join(request: GuestJoinRequest, db: Session = Depends(get_db)):
     event = event_repo.get_by_join_code(request.join_code)
     if not event:
         raise HTTPException(status_code=404, detail="Torneo no encontrado")
-    if event.status != EventStatus.PENDING:
-        raise HTTPException(status_code=400, detail="El evento ya ha comenzado")
-        
-    # Validar alias único
+    
+    # Comprobar si el alias ya existe
     existing_user = user_repo.get_by_alias(request.alias)
+    
     if existing_user:
+        # Re-login: el alias pertenece a un invitado ya inscrito en este torneo
+        if existing_user.is_guest and existing_user.id in event.players:
+            # Verificar que el device_token coincide (protección anti-suplantación)
+            if not request.device_token or request.device_token != existing_user.device_token:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Este alias ya está en uso por otro dispositivo. Elige un nombre diferente."
+                )
+            return {
+                "id": existing_user.id,
+                "alias": existing_user.alias,
+                "role": existing_user.role,
+                "is_guest": True,
+                "device_token": existing_user.device_token,
+                "message": "Sesión recuperada con éxito"
+            }
+        # El alias pertenece a un usuario registrado o a un invitado de otro torneo
         raise HTTPException(status_code=400, detail="Este nombre ya está en uso. Por favor, elige otro.")
-        
-    # Registrar usuario
+    
+    # Sólo se permiten nuevas inscripciones si el torneo no ha terminado
+    if event.status.value == "completed":
+        raise HTTPException(status_code=400, detail="El torneo ya ha finalizado")
+    
+    # Generar token de dispositivo único para este invitado
+    new_device_token = str(uuid.uuid4())
+    
+    # Registrar usuario nuevo con device_token
     new_user = User(
         id=str(uuid.uuid4()),
         alias=request.alias,
         is_guest=True,
-        role=Role.PLAYER
+        role=Role.PLAYER,
+        device_token=new_device_token
     )
     user_repo.save(new_user)
     
@@ -208,6 +232,7 @@ def guest_join(request: GuestJoinRequest, db: Session = Depends(get_db)):
         "alias": new_user.alias,
         "role": new_user.role,
         "is_guest": True,
+        "device_token": new_device_token,
         "message": "Invitado unido con éxito"
     }
 

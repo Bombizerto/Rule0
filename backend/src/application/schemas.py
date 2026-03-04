@@ -98,7 +98,7 @@ class PodRejectResultRequest(BaseModel):
 
 class PlayerStatusUpdate(BaseModel):
     player_id: str
-    status: PlayerStatus
+    status: str
 
 class PlayerLoginRequest(BaseModel):
     join_code: str
@@ -118,8 +118,10 @@ class LoginResponse(BaseModel):
     alias: str
     role: Role
     is_guest: bool
+    device_token: Optional[str] = None  # Solo se devuelve para invitados al crearse
     message: str
 
 class GuestJoinRequest(BaseModel):
     alias: str
     join_code: str
+    device_token: Optional[str] = None  # Enviado por el cliente para re-login

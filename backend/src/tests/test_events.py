@@ -316,12 +316,14 @@ def test_guest_join_invalid_code(client, db_session):
     assert response.json()["detail"] == "Torneo no encontrado"
 
 def test_guest_join_alias_exists(client, db_session):
+    """Un alias que pertenece a un usuario NO invitado no puede usarse como invitado."""
     from infrastructure.repositories import UserRepository, EventRepository
     from domain.entities import User, Event, EventStatus, Role
     from datetime import datetime, UTC
 
     user_repo = UserRepository(db_session)
-    user_repo.save(User(id="existing-id", alias="ExistingUser", role=Role.PLAYER))
+    # Usuario registrado (no invitado) con ese alias
+    user_repo.save(User(id="existing-id", alias="ExistingUser", is_guest=False, role=Role.PLAYER))
     
     repo = EventRepository(db_session)
     now = datetime.now(UTC)
@@ -333,6 +335,51 @@ def test_guest_join_alias_exists(client, db_session):
     response = client.post("/auth/guest_join", json={"alias": "ExistingUser", "join_code": "GUEST2"})
     assert response.status_code == 400
     assert "nombre ya está en uso" in response.json()["detail"]
+
+def test_guest_rejoin_same_tournament(client, db_session):
+    """Un invitado ya inscrito puede volver a entrar al mismo torneo con su device_token."""
+    from infrastructure.repositories import UserRepository, EventRepository
+    from domain.entities import User, Event, EventStatus, Role, PlayerStatus
+    from datetime import datetime, UTC
+
+    user_repo = UserRepository(db_session)
+    existing_guest = User(
+        id="guest-relogin-id", alias="ReturningGuest",
+        is_guest=True, role=Role.PLAYER,
+        device_token="test-device-abc123"
+    )
+    user_repo.save(existing_guest)
+
+    repo = EventRepository(db_session)
+    now = datetime.now(UTC)
+    repo.save(Event(
+            id="evt-guest-3", title="Torneo Guest Re-login", organizer_id="org-777",
+            ruleset_id="ruleset-1", join_code="GUEST3",
+            players=["guest-relogin-id"],
+            rounds=[], created_at=now,
+            player_status={"guest-relogin-id": PlayerStatus.ACTIVE},
+            status=EventStatus.ACTIVE
+        ))
+
+    # Re-login con el device_token correcto
+    response = client.post("/auth/guest_join", json={
+        "alias": "ReturningGuest",
+        "join_code": "GUEST3",
+        "device_token": "test-device-abc123"
+    })
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == "guest-relogin-id"
+    assert data["is_guest"] is True
+    assert "Sesión recuperada" in data["message"]
+
+    # Re-login con token incorrecto → debe fallar
+    response_bad = client.post("/auth/guest_join", json={
+        "alias": "ReturningGuest",
+        "join_code": "GUEST3",
+        "device_token": "token-incorrecto"
+    })
+    assert response_bad.status_code == 403
 
 def test_signup_success(client, db_session):
     response = client.post("/auth/signup", json={"alias": "NewRegisteredUser", "password": "securepassword"})
