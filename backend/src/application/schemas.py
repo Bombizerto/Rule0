@@ -109,10 +109,15 @@ class LoginRequest(BaseModel):
     alias: str
     password: str
 
+class RegisterRequest(BaseModel):
+    alias: str
+    password: str
+
 class LoginResponse(BaseModel):
     id: str
     alias: str
     role: Role
+    is_guest: bool
     message: str
 
 class GuestJoinRequest(BaseModel):

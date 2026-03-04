@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 
 function LoginView({ onLoginSuccess }) {
     const [isGuestMode, setIsGuestMode] = useState(false);
+    const [isRegistering, setIsRegistering] = useState(false);
     const [alias, setAlias] = useState('');
     const [password, setPassword] = useState('');
     const [joinCode, setJoinCode] = useState('');
@@ -15,7 +16,10 @@ function LoginView({ onLoginSuccess }) {
         setError('');
 
         try {
-            const url = isGuestMode ? 'http://127.0.0.1:8000/auth/guest_join' : 'http://127.0.0.1:8000/auth/login';
+            let url = 'http://127.0.0.1:8000/auth/login';
+            if (isGuestMode) url = 'http://127.0.0.1:8000/auth/guest_join';
+            else if (isRegistering) url = 'http://127.0.0.1:8000/auth/signup';
+
             const body = isGuestMode
                 ? JSON.stringify({ alias, join_code: joinCode })
                 : JSON.stringify({ alias, password });
@@ -44,7 +48,7 @@ function LoginView({ onLoginSuccess }) {
     return (
         <div className="glass-panel" style={{ maxWidth: '400px', margin: '4rem auto', padding: '2rem' }}>
             <h2 style={{ textAlign: 'center', marginBottom: '1.5rem', color: 'var(--accent-primary)' }}>
-                {isGuestMode ? 'Unirse como Invitado' : 'Iniciar Sesión'}
+                {isGuestMode ? 'Unirse como Invitado' : (isRegistering ? 'Crear Cuenta' : 'Iniciar Sesión')}
             </h2>
 
             <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
@@ -129,9 +133,27 @@ function LoginView({ onLoginSuccess }) {
                     style={{ width: '100%', padding: '1rem', fontSize: '1.1rem' }}
                     disabled={loading || !alias || (!isGuestMode ? !password : !joinCode)}
                 >
-                    {loading ? 'Cargando...' : (isGuestMode ? 'Unirme al Torneo' : 'Entrar')}
+                    {loading ? 'Cargando...' : (isGuestMode ? 'Unirme al Torneo' : (isRegistering ? 'Registrarse' : 'Entrar'))}
                 </button>
             </form>
+
+            {!isGuestMode && (
+                <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+                    <button
+                        type="button"
+                        onClick={() => { setIsRegistering(!isRegistering); setError(''); }}
+                        style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: 'var(--accent-secondary)',
+                            cursor: 'pointer',
+                            textDecoration: 'underline'
+                        }}
+                    >
+                        {isRegistering ? '¿Ya tienes cuenta? Inicia sesión' : '¿No tienes cuenta? Crea una'}
+                    </button>
+                </div>
+            )}
 
             <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                 Versia Way System • Acceso Restringido

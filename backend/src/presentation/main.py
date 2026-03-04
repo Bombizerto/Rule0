@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import uuid
 from datetime import datetime, UTC
 from presentation.routers.matchmaking import router as matchmaking_router 
-from application.schemas import UserCreate, UserResponse, EventCreate, EventResponse, FormatRulesetCreate, FormatRulesetResponse, EventRegistrationRequest, LoginRequest, LoginResponse, GuestJoinRequest
+from application.schemas import UserCreate, UserResponse, EventCreate, EventResponse, FormatRulesetCreate, FormatRulesetResponse, EventRegistrationRequest, LoginRequest, LoginResponse, GuestJoinRequest, RegisterRequest
 from domain.entities import User, Role, Event, FormatRuleset, EventStatus, PlayerStatus
 from infrastructure.database import get_db, engine
 from infrastructure.models_orm import Base
@@ -141,7 +141,35 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
         "id": user.id,
         "alias": user.alias,
         "role": user.role,
+        "is_guest": user.is_guest,
         "message": "Login successful"
+    }
+
+@app.post("/auth/signup", response_model=LoginResponse)
+def signup(request: RegisterRequest, db: Session = Depends(get_db)):
+    user_repo = UserRepository(db)
+    
+    # Validar alias único
+    existing_user = user_repo.get_by_alias(request.alias)
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Este nombre ya está en uso. Por favor, elige otro.")
+        
+    # Registrar usuario asignando Rol Player (o Admin si existiera lógica, por ahora se asigna por defecto)
+    new_user = User(
+        id=str(uuid.uuid4()),
+        alias=request.alias,
+        password=request.password,
+        is_guest=False,
+        role=Role.PLAYER
+    )
+    user_repo.save(new_user)
+    
+    return {
+        "id": new_user.id,
+        "alias": new_user.alias,
+        "role": new_user.role,
+        "is_guest": new_user.is_guest,
+        "message": "Cuenta creada con éxito"
     }
 
 @app.post("/auth/guest_join", response_model=LoginResponse)
@@ -179,6 +207,7 @@ def guest_join(request: GuestJoinRequest, db: Session = Depends(get_db)):
         "id": new_user.id,
         "alias": new_user.alias,
         "role": new_user.role,
+        "is_guest": True,
         "message": "Invitado unido con éxito"
     }
 
@@ -186,3 +215,23 @@ def guest_join(request: GuestJoinRequest, db: Session = Depends(get_db)):
 def get_events_by_player(player_id: str, db: Session = Depends(get_db)):
     repo = EventRepository(db)
     return repo.get_by_player(player_id)
+
+@app.get("/events/{event_id}/players-info")
+def get_players_info(event_id: str, db: Session = Depends(get_db)):
+    """Devuelve la lista de jugadores inscritos en un evento con su alias resuelto."""
+    event_repo = EventRepository(db)
+    user_repo = UserRepository(db)
+    
+    event = event_repo.get_by_id(event_id)
+    if not event:
+        raise HTTPException(status_code=404, detail="Evento no encontrado")
+    
+    players_info = []
+    for player_id in event.players:
+        user = user_repo.get_by_id(player_id)
+        players_info.append({
+            "id": player_id,
+            "alias": user.alias if user else player_id
+        })
+    
+    return players_info

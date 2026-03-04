@@ -1,14 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 function MyDashboard({ eventData, playerId, onLogout }) {
     const [loadingAction, setLoadingAction] = useState(false);
     const [actionError, setActionError] = useState(null);
     const [localEventData, setLocalEventData] = useState(eventData);
+    const [playerNames, setPlayerNames] = useState({}); // mapa { uuid: alias }
+
+    // Cargar el mapa de nombres al montar
+    useEffect(() => {
+        if (!eventData?.id) return;
+        fetch(`http://127.0.0.1:8000/events/${eventData.id}/players-info`)
+            .then(r => r.ok ? r.json() : [])
+            .then(list => {
+                const map = {};
+                list.forEach(p => { map[p.id] = p.alias; });
+                setPlayerNames(map);
+            })
+            .catch(() => { });
+    }, [eventData?.id]);
 
     if (!localEventData) return null;
-
-    // Buscar al jugador
-    const player = localEventData.players.find(p => p.id === playerId);
 
     // Buscar la mesa activa (en la última ronda o ronda activa)
     let currentPod = null;
@@ -22,17 +33,10 @@ function MyDashboard({ eventData, playerId, onLogout }) {
 
     const refreshEventData = async () => {
         try {
-            const resp = await fetch(`http://127.0.0.1:8000/matchmaking/events/login-player`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    join_code: localEventData.join_code,
-                    player_alias: player.alias
-                })
-            });
+            const resp = await fetch(`http://127.0.0.1:8000/matchmaking/events/${localEventData.id}`);
             if (resp.ok) {
                 const data = await resp.json();
-                setLocalEventData(data.event_data);
+                setLocalEventData(data);
             }
         } catch (err) {
             console.error("Error refreshing data:", err);
@@ -117,7 +121,7 @@ function MyDashboard({ eventData, playerId, onLogout }) {
                 <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(34, 197, 94, 0.1)', border: '1px solid var(--success-color)', borderRadius: '8px', textAlign: 'center' }}>
                     <h4 style={{ color: 'var(--success-color)', margin: 0 }}>Mesa Finalizada ✓</h4>
                     <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.9rem' }}>
-                        {currentPod.is_draw ? "Empate (Draw)" : `Ganador: ${localEventData.players.find(p => p.id === currentPod.winner_id)?.alias}`}
+                        {currentPod.is_draw ? "Empate (Draw)" : `Ganador: ${propName(currentPod.winner_id)}`}
                     </p>
                 </div>
             );
@@ -141,7 +145,7 @@ function MyDashboard({ eventData, playerId, onLogout }) {
 
             let propuestaTarget = "Empate";
             if (currentPod.proposed_winner_id) {
-                propuestaTarget = "Ganador: " + localEventData.players.find(p => p.id === currentPod.proposed_winner_id)?.alias;
+                propuestaTarget = "Ganador: " + propName(currentPod.proposed_winner_id);
             }
 
             return (
@@ -188,7 +192,6 @@ function MyDashboard({ eventData, playerId, onLogout }) {
                         🤝 Empate (Draw)
                     </button>
                     {currentPod.players_ids.filter(id => id !== playerId).map(opp_id => {
-                        const oppInfo = localEventData.players.find(p => p.id === opp_id);
                         return (
                             <button
                                 key={opp_id}
@@ -197,7 +200,7 @@ function MyDashboard({ eventData, playerId, onLogout }) {
                                 onClick={() => handleProposeResult(opp_id, false)}
                                 disabled={loadingAction}
                             >
-                                Ganó: {oppInfo ? oppInfo.alias : opp_id}
+                                Ganó: {propName(opp_id)}
                             </button>
                         )
                     })}
@@ -206,10 +209,12 @@ function MyDashboard({ eventData, playerId, onLogout }) {
         );
     };
 
+    const propName = id => playerNames[id] || id.slice(0, 8) + '...';
+
     return (
         <main className="glass-panel fade-in" style={{ maxWidth: '800px', margin: '2rem auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-                <h2 style={{ margin: 0 }}>Vista de: <span style={{ color: 'var(--accent-primary)' }}>{player ? player.alias : playerId}</span></h2>
+                <h2 style={{ margin: 0 }}>Vista de: <span style={{ color: 'var(--accent-primary)' }}>{playerNames[playerId] || playerId}</span></h2>
                 <div style={{ display: 'flex', gap: '1rem' }}>
                     <button className="primary-button" style={{ background: 'transparent' }} onClick={refreshEventData}>↻ Refrescar</button>
                     <button className="danger-button" onClick={onLogout}>Salir</button>
@@ -230,12 +235,11 @@ function MyDashboard({ eventData, playerId, onLogout }) {
                             <span>Estado</span>
                         </div>
                         {currentPod.players_ids.map(pid => {
-                            const pInfo = localEventData.players.find(x => x.id === pid);
                             const confirmed = currentPod.confirmations?.[pid] === true;
                             return (
                                 <div key={pid} className="leaderboard-row" style={{ background: pid === playerId ? 'rgba(56, 189, 248, 0.15)' : 'transparent' }}>
                                     <span className="player-name" style={{ flex: 2, fontWeight: pid === playerId ? 'bold' : 'normal' }}>
-                                        {pInfo ? pInfo.alias : pid} {pid === playerId ? "(Tú)" : ""}
+                                        {propName(pid)} {pid === playerId ? "(Tú)" : ""}
                                     </span>
                                     <span className="points" style={{ fontSize: '0.85rem' }}>
                                         {currentPod.winner_id === pid ? "🏆 Ganador" :

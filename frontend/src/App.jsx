@@ -22,7 +22,7 @@ function App() {
       try {
         const user = JSON.parse(savedSession);
         setCurrentUser(user);
-        if (user.role === 'admin') {
+        if (!user.is_guest) {
           setCurrentView('dashboard');
         } else {
           setCurrentView('player_hub');
@@ -37,7 +37,7 @@ function App() {
   const handleLoginSuccess = (userData) => {
     setCurrentUser(userData);
     localStorage.setItem('rule0_session', JSON.stringify(userData));
-    if (userData.role === 'admin') {
+    if (!userData.is_guest) {
       setCurrentView('dashboard');
     } else {
       setCurrentView('player_hub');
@@ -121,7 +121,7 @@ function App() {
             </span>
           )}
 
-          {currentUser?.role === 'admin' && (
+          {currentUser && !currentUser.is_guest && (
             <>
               <button
                 className="primary-button"
@@ -161,7 +161,7 @@ function App() {
             </>
           )}
 
-          {currentUser?.role === 'player' && (
+          {currentUser && currentUser.is_guest && (
             <button
               className="primary-button"
               onClick={() => setCurrentView('player_hub')}
@@ -171,7 +171,7 @@ function App() {
                 border: '2px solid var(--accent-primary)',
               }}
             >
-              Mis Torneos
+              Modo Jugador
             </button>
           )}
 

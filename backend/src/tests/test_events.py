@@ -333,3 +333,22 @@ def test_guest_join_alias_exists(client, db_session):
     response = client.post("/auth/guest_join", json={"alias": "ExistingUser", "join_code": "GUEST2"})
     assert response.status_code == 400
     assert "nombre ya está en uso" in response.json()["detail"]
+
+def test_signup_success(client, db_session):
+    response = client.post("/auth/signup", json={"alias": "NewRegisteredUser", "password": "securepassword"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["alias"] == "NewRegisteredUser"
+    assert "id" in data
+    assert data["role"] == "player"
+    assert data["message"] == "Cuenta creada con éxito"
+
+def test_signup_alias_exists(client, db_session):
+    from infrastructure.repositories import UserRepository
+    from domain.entities import User, Role
+    user_repo = UserRepository(db_session)
+    user_repo.save(User(id="existing-id-signup", alias="ExistingSignupUser", role=Role.PLAYER))
+    
+    response = client.post("/auth/signup", json={"alias": "ExistingSignupUser", "password": "newpassword"})
+    assert response.status_code == 400
+    assert "nombre ya está en uso" in response.json()["detail"]
