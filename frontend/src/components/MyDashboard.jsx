@@ -5,8 +5,9 @@ function MyDashboard({ eventData, playerId, onLogout }) {
     const [actionError, setActionError] = useState(null);
     const [localEventData, setLocalEventData] = useState(eventData);
     const [playerNames, setPlayerNames] = useState({}); // mapa { uuid: alias }
+    const [leaderboard, setLeaderboard] = useState([]);
 
-    // Cargar el mapa de nombres al montar
+    // Cargar el mapa de nombres y el leaderboard al montar
     useEffect(() => {
         if (!eventData?.id) return;
         fetch(`http://127.0.0.1:8000/events/${eventData.id}/players-info`)
@@ -16,6 +17,11 @@ function MyDashboard({ eventData, playerId, onLogout }) {
                 list.forEach(p => { map[p.id] = p.alias; });
                 setPlayerNames(map);
             })
+            .catch(() => { });
+
+        fetch(`http://127.0.0.1:8000/matchmaking/events/${eventData.id}/leaderboard`)
+            .then(r => r.ok ? r.json() : [])
+            .then(data => setLeaderboard(data))
             .catch(() => { });
     }, [eventData?.id]);
 
@@ -259,6 +265,43 @@ function MyDashboard({ eventData, playerId, onLogout }) {
                     <p style={{ marginTop: '0.5rem' }}>El organizador aún no ha lanzado tu ronda.</p>
                 </div>
             )}
+            {/* Leaderboard del torneo */}
+            <div style={{ marginTop: '2rem' }}>
+                <h3 style={{ color: 'var(--accent-primary)', marginBottom: '1rem' }}>🏆 Clasificación del Torneo</h3>
+                {leaderboard.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '1.5rem', background: 'var(--bg-card)', borderRadius: '12px', color: 'var(--text-muted)' }}>
+                        <p>Aún no hay rondas completadas.</p>
+                    </div>
+                ) : (
+                    <div className="leaderboard-list">
+                        <div className="leaderboard-header leaderboard-row">
+                            <span style={{ width: '2rem' }}>#</span>
+                            <span style={{ flex: 2 }}>Jugador</span>
+                            <span>Puntos</span>
+                        </div>
+                        {leaderboard.map((entry, i) => (
+                            <div
+                                key={entry.player_id}
+                                className="leaderboard-row"
+                                style={{
+                                    background: entry.player_id === playerId ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
+                                    fontWeight: entry.player_id === playerId ? 'bold' : 'normal'
+                                }}
+                            >
+                                <span style={{ width: '2rem', color: i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? '#cd7f32' : 'var(--text-muted)' }}>
+                                    {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`}
+                                </span>
+                                <span className="player-name" style={{ flex: 2 }}>
+                                    {entry.alias} {entry.player_id === playerId ? '(Tú)' : ''}
+                                </span>
+                                <span className="points" style={{ color: 'var(--accent-primary)', fontWeight: 'bold' }}>
+                                    {entry.points} pts
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
 
         </main>
     )

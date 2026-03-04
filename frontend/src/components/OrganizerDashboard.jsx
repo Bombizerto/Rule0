@@ -4,6 +4,8 @@ const OrganizerDashboard = ({ organizerId, onSelectEvent }) => {
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [expandedLeaderboard, setExpandedLeaderboard] = useState(null); // event_id activo
+    const [leaderboards, setLeaderboards] = useState({}); // { event_id: [...] }
 
     // Estado para el modal de Crear Torneo
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -134,10 +136,27 @@ const OrganizerDashboard = ({ organizerId, onSelectEvent }) => {
                                 </div>
                             </div>
 
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
                                 <span className={`status-badge status-${event.status}`}>
                                     {event.status}
                                 </span>
+                                <button
+                                    className="btn btn-secondary"
+                                    style={{ background: 'transparent', border: '1px solid var(--accent-primary)', color: 'var(--accent-primary)', fontSize: '0.85rem' }}
+                                    onClick={async () => {
+                                        const isOpen = expandedLeaderboard === event.id;
+                                        setExpandedLeaderboard(isOpen ? null : event.id);
+                                        if (!isOpen && !leaderboards[event.id]) {
+                                            const res = await fetch(`http://127.0.0.1:8000/matchmaking/events/${event.id}/leaderboard`);
+                                            if (res.ok) {
+                                                const data = await res.json();
+                                                setLeaderboards(prev => ({ ...prev, [event.id]: data }));
+                                            }
+                                        }
+                                    }}
+                                >
+                                    {expandedLeaderboard === event.id ? '▲ Clasificación' : '▼ Clasificación'}
+                                </button>
                                 <button
                                     className="btn btn-secondary"
                                     onClick={() => onSelectEvent(event.id)}
@@ -145,6 +164,32 @@ const OrganizerDashboard = ({ organizerId, onSelectEvent }) => {
                                     Gestionar
                                 </button>
                             </div>
+
+                            {/* Panel de leaderboard expandible */}
+                            {expandedLeaderboard === event.id && (
+                                <div style={{ marginTop: '1rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+                                    {!leaderboards[event.id] || leaderboards[event.id].length === 0 ? (
+                                        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>Aún no hay rondas completadas.</p>
+                                    ) : (
+                                        <div className="leaderboard-list">
+                                            <div className="leaderboard-header leaderboard-row">
+                                                <span style={{ width: '2rem' }}>#</span>
+                                                <span style={{ flex: 2 }}>Jugador</span>
+                                                <span>Puntos</span>
+                                            </div>
+                                            {leaderboards[event.id].map((e2, i) => (
+                                                <div key={e2.player_id} className="leaderboard-row">
+                                                    <span style={{ width: '2rem', color: i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? '#cd7f32' : 'var(--text-muted)' }}>
+                                                        {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`}
+                                                    </span>
+                                                    <span className="player-name" style={{ flex: 2 }}>{e2.alias}</span>
+                                                    <span className="points" style={{ color: 'var(--accent-primary)', fontWeight: 'bold' }}>{e2.points} pts</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     ))}
                 </div>
