@@ -17,9 +17,9 @@ function LoginView({ onLoginSuccess }) {
         setError('');
 
         try {
-            let url = '${API_BASE_URL}/auth/login';
-            if (isGuestMode) url = '${API_BASE_URL}/auth/guest_join';
-            else if (isRegistering) url = '${API_BASE_URL}/auth/signup';
+            let url = `${API_BASE_URL}/auth/login`;
+            if (isGuestMode) url = `${API_BASE_URL}/auth/guest_join`;
+            else if (isRegistering) url = `${API_BASE_URL}/auth/signup`;
 
             let bodyObj;
             if (isGuestMode) {

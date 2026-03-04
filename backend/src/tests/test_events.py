@@ -337,7 +337,7 @@ def test_guest_join_alias_exists(client, db_session):
     assert "nombre ya está en uso" in response.json()["detail"]
 
 def test_guest_rejoin_same_tournament(client, db_session):
-    """Un invitado ya inscrito puede volver a entrar al mismo torneo con su device_token."""
+    """Un invitado ya inscrito puede volver a entrar al mismo torneo con su alias."""
     from infrastructure.repositories import UserRepository, EventRepository
     from domain.entities import User, Event, EventStatus, Role, PlayerStatus
     from datetime import datetime, UTC
@@ -345,8 +345,7 @@ def test_guest_rejoin_same_tournament(client, db_session):
     user_repo = UserRepository(db_session)
     existing_guest = User(
         id="guest-relogin-id", alias="ReturningGuest",
-        is_guest=True, role=Role.PLAYER,
-        device_token="test-device-abc123"
+        is_guest=True, role=Role.PLAYER
     )
     user_repo.save(existing_guest)
 
@@ -361,25 +360,29 @@ def test_guest_rejoin_same_tournament(client, db_session):
             status=EventStatus.ACTIVE
         ))
 
-    # Re-login con el device_token correcto
-    response = client.post("/auth/guest_join", json={
-        "alias": "ReturningGuest",
+    # Re-login con el alias correcto usando login-player
+    response = client.post("/matchmaking/events/login-player", json={
+        "player_alias": "ReturningGuest",
         "join_code": "GUEST3",
-        "device_token": "test-device-abc123"
+        "password": ""
     })
+    
     assert response.status_code == 200
     data = response.json()
-    assert data["id"] == "guest-relogin-id"
-    assert data["is_guest"] is True
-    assert "Sesión recuperada" in data["message"]
-
-    # Re-login con token incorrecto → debe fallar
-    response_bad = client.post("/auth/guest_join", json={
-        "alias": "ReturningGuest",
+    assert data["player_id"] == "guest-relogin-id"
+    assert "Login successful" in data["message"]
+    
+    # Intento de login con password incorrecto al mismo alias
+    # Asignamos password al usuario para probar
+    existing_guest.password = "secretpass"
+    user_repo.save(existing_guest)
+    
+    response_bad = client.post("/matchmaking/events/login-player", json={
+        "player_alias": "ReturningGuest",
         "join_code": "GUEST3",
-        "device_token": "token-incorrecto"
+        "password": "wrong-password"
     })
-    assert response_bad.status_code == 403
+    assert response_bad.status_code == 401
 
 def test_signup_success(client, db_session):
     response = client.post("/auth/signup", json={"alias": "NewRegisteredUser", "password": "securepassword"})

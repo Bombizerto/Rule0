@@ -44,7 +44,7 @@ const OrganizerDashboard = ({ organizerId, onSelectEvent }) => {
         try {
             // MOCK: Asumimos que todos los torneos usan el ruleset de Casual Commander que inyectamos en el seed
             // Lo ideal sería obtener la lista de rulesets del servidor y elegir uno en un select
-            const response = await fetch('${API_BASE_URL}/events/', {
+            const response = await fetch(`${API_BASE_URL}/events/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -61,7 +61,7 @@ const OrganizerDashboard = ({ organizerId, onSelectEvent }) => {
 
             // Auto-join si se ha marcado la casilla
             if (autoJoin && eventData.join_code) {
-                await fetch('${API_BASE_URL}/events/register', {
+                await fetch(`${API_BASE_URL}/events/register`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({

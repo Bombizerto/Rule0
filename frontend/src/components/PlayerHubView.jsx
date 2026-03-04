@@ -33,7 +33,7 @@ function PlayerHubView({ user, onSelectEvent, onLogout }) {
 
         setJoining(true);
         try {
-            const response = await fetch('${API_BASE_URL}/events/register', {
+            const response = await fetch(`${API_BASE_URL}/events/register`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
