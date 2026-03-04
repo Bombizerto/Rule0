@@ -17,8 +17,7 @@ class UserRepository:
             password=model.password,
             email=model.email,
             is_guest=model.is_guest,
-            role=model.role,
-            device_token=model.device_token
+            role=model.role
         )
 
     def get_by_alias(self, alias: str) -> Optional[User]:
@@ -31,8 +30,7 @@ class UserRepository:
             password=model.password,
             email=model.email,
             is_guest=model.is_guest,
-            role=model.role,
-            device_token=model.device_token
+            role=model.role
         )
 
     def save(self, user: User) -> User:
@@ -42,8 +40,7 @@ class UserRepository:
             password=user.password,
             email=user.email,
             is_guest=user.is_guest,
-            role=user.role,
-            device_token=user.device_token
+            role=user.role
         )
         self.session.merge(model)
         self.session.commit()

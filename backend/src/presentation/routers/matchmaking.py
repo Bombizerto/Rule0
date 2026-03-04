@@ -53,12 +53,7 @@ async def generate_round_endpoint(event_id: str, db: Session = Depends(get_db)):
     event.rounds.append(new_round)
     event.round_number += 1
 
-    # Si el evento estaba en PENDING, lo pasamos a ACTIVE al generar la primera ronda
-    if event.status == EventStatus.PENDING:
-        event.status = EventStatus.ACTIVE
-
     event_repo.save(event)
-
 
     return {
         "round": new_round,
@@ -427,63 +422,3 @@ def close_event(event_id: str, db: Session = Depends(get_db)):
     event_repo.save(event)
     
     return {"message": "El torneo ha finalizado oficialmente.", "status": event.status}
-
-@router.post("/events/{event_id}/change_player_status")
-def change_player_status(event_id: str, request: PlayerStatusUpdate, db: Session = Depends(get_db)):
-    """Endpoint para que el ADMINISTRADOR cambie el estado de cualquier jugador."""
-    print(f"DEBUG: admin change status - event={event_id}, player={request.player_id}, status={request.status}")
-    try:
-        event_repo = EventRepository(db)
-        event = event_repo.get_by_id(event_id)
-        if not event:
-            raise HTTPException(status_code=404, detail="Evento no encontrado.")
-        
-        if request.player_id not in event.players:
-            raise HTTPException(status_code=404, detail="Jugador no inscrito en este evento.")
-        
-        # El admin tiene poder total, puede cambiar a cualquier estado
-        new_st = PlayerStatus(request.status)
-        event.player_status[request.player_id] = new_st
-        event_repo.save(event)
-        
-        return {"message": f"Estado del jugador actualizado a {new_st.value}"}
-    except Exception as e:
-        print(f"DEBUG ERROR: {str(e)}")
-        raise e
-
-
-@router.post("/events/{event_id}/self_change_status")
-def self_change_status(event_id: str, request: PlayerStatusUpdate, db: Session = Depends(get_db)):
-    """Endpoint para que el PROPIO JUGADOR cambie su estado."""
-    event_repo = EventRepository(db)
-    event = event_repo.get_by_id(event_id)
-    if not event:
-        raise HTTPException(status_code=404, detail="Evento no encontrado.")
-    
-    if request.player_id not in event.players:
-        raise HTTPException(status_code=404, detail="No estás inscrito en este evento.")
-
-    current_status = event.player_status.get(request.player_id)
-    new_status = PlayerStatus(request.status)
-
-    # Lógica de protección:
-    # 1. Si el jugador está en SELF_DROPPED o DROPPED, no puede reactivarse solo (necesita al admin)
-    if current_status in [PlayerStatus.DROPPED, PlayerStatus.SELF_DROPPED] and new_status == PlayerStatus.ACTIVE:
-        raise HTTPException(
-            status_code=403, 
-            detail="Has abandonado el torneo. Debes solicitar al organizador que te reactive manualmente."
-        )
-
-    # 2. Si el jugador elige DROPPED, lo marcamos como SELF_DROPPED para que el admin sepa que fue voluntario
-    if new_status == PlayerStatus.DROPPED:
-        new_status = PlayerStatus.SELF_DROPPED
-
-    # 3. Solo permitimos transiciones lógicas para el jugador: PAUSE/ACTIVE/DROP
-    if new_status not in [PlayerStatus.ACTIVE, PlayerStatus.PAUSED, PlayerStatus.SELF_DROPPED]:
-         raise HTTPException(status_code=400, detail="Acción no permitida para el jugador.")
-
-    event.player_status[request.player_id] = new_status
-    event_repo.save(event)
-    
-    return {"message": f"Tu estado ha sido actualizado a {new_status.value}"}
-

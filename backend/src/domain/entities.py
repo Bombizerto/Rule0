@@ -19,7 +19,6 @@ class User:
     email: Optional[str] = None
     is_guest: bool = False
     role: Role = Role.PLAYER
-    device_token: Optional[str] = None  # Token de dispositivo para re-login de invitados
     seat_history: Dict[int, int] = field(default_factory=lambda: {1: 0, 2: 0, 3: 0, 4: 0, 5:0})
 
 class EventStatus(str, Enum):
@@ -34,7 +33,6 @@ class PlayerStatus(str, Enum):
     DROPPED = "dropped"
     DISQUALIFIED = "disqualified"
     PAUSED ="paused"
-    SELF_DROPPED = "self_dropped"
 
 @dataclass
 class FormatRuleset:
