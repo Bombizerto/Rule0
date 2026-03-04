@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import uuid
 from datetime import datetime, UTC
 from presentation.routers.matchmaking import router as matchmaking_router 
-from application.schemas import UserCreate, UserResponse, EventCreate, EventResponse, FormatRulesetCreate, FormatRulesetResponse, EventRegistrationRequest
+from application.schemas import UserCreate, UserResponse, EventCreate, EventResponse, FormatRulesetCreate, FormatRulesetResponse, EventRegistrationRequest, LoginRequest, LoginResponse
 from domain.entities import User, Event, FormatRuleset, EventStatus, PlayerStatus
 from infrastructure.database import get_db, engine
 from infrastructure.models_orm import Base
@@ -55,8 +55,10 @@ def create_user(user_in: UserCreate, db: Session = Depends(get_db)):
     new_user = User(
         id=str(uuid.uuid4()),  # Generamos ID único
         alias=user_in.alias,
+        password="password", # Default temporal
         email=user_in.email,
-        is_guest=user_in.is_guest
+        is_guest=user_in.is_guest,
+        role=user_in.role
     )
     
     # 2. Guardamos en nuestra base de datos
@@ -127,3 +129,22 @@ def get_events_by_organizer(organizer_id: str, db: Session = Depends(get_db)):
     """
     repo = EventRepository(db)
     return repo.get_by_organizer(organizer_id)
+
+@app.post("/auth/login", response_model=LoginResponse)
+def login(request: LoginRequest, db: Session = Depends(get_db)):
+    repo = UserRepository(db)
+    user = repo.get_by_alias(request.alias)
+    if not user or user.password != request.password:
+        raise HTTPException(status_code=401, detail="Credenciales incorrectas")
+    
+    return {
+        "id": user.id,
+        "alias": user.alias,
+        "role": user.role,
+        "message": "Login successful"
+    }
+
+@app.get("/events/player/{player_id}", response_model=List[Event])
+def get_events_by_player(player_id: str, db: Session = Depends(get_db)):
+    repo = EventRepository(db)
+    return repo.get_by_player(player_id)

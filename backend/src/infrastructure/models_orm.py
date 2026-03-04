@@ -1,7 +1,7 @@
 from sqlalchemy import Column, String, Integer, Boolean, ForeignKey, JSON, Enum as SQLEnum, DateTime
 from sqlalchemy.orm import relationship
 from infrastructure.database import Base
-from domain.entities import EventStatus, PlayerStatus
+from domain.entities import EventStatus, PlayerStatus, Role
 from datetime import datetime
 
 class UserModel(Base):
@@ -9,8 +9,10 @@ class UserModel(Base):
 
     id = Column(String, primary_key=True, index=True)
     alias = Column(String, index=True)
+    password = Column(String, nullable=True)
     email = Column(String, nullable=True)
     is_guest = Column(Boolean, default=False)
+    role = Column(SQLEnum(Role), default=Role.PLAYER)
     seat_history = Column(JSON, default=dict)
 
 
@@ -69,5 +71,10 @@ class PodModel(Base):
     players_ids = Column(JSON, default=list)
     winner_id = Column(String, nullable=True)
     is_draw = Column(Boolean, default=False)
+    
+    proposed_winner_id = Column(String, nullable=True)
+    proposed_is_draw = Column(Boolean, default=False)
+    confirmations = Column(JSON, default=dict)
+    is_disputed = Column(Boolean, default=False)
 
     round = relationship("RoundModel", back_populates="pods")

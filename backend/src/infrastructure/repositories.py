@@ -14,16 +14,33 @@ class UserRepository:
         return User(
             id=model.id,
             alias=model.alias,
+            password=model.password,
             email=model.email,
-            is_guest=model.is_guest
+            is_guest=model.is_guest,
+            role=model.role
+        )
+
+    def get_by_alias(self, alias: str) -> Optional[User]:
+        model = self.session.query(UserModel).filter(UserModel.alias == alias).first()
+        if not model:
+            return None
+        return User(
+            id=model.id,
+            alias=model.alias,
+            password=model.password,
+            email=model.email,
+            is_guest=model.is_guest,
+            role=model.role
         )
 
     def save(self, user: User) -> User:
         model = UserModel(
             id=user.id,
             alias=user.alias,
+            password=user.password,
             email=user.email,
-            is_guest=user.is_guest
+            is_guest=user.is_guest,
+            role=user.role
         )
         self.session.merge(model)
         self.session.commit()
@@ -76,9 +93,13 @@ class EventRepository:
                 domain_pods.append(Pod(
                     id=p_model.id,
                     table_number=p_model.table_number,
-                    players_ids=p_model.players_ids,
+                    players_ids=list(p_model.players_ids),
                     winner_id=p_model.winner_id,
-                    is_draw=p_model.is_draw
+                    is_draw=p_model.is_draw,
+                    proposed_winner_id=p_model.proposed_winner_id,
+                    proposed_is_draw=p_model.proposed_is_draw,
+                    confirmations=dict(p_model.confirmations) if p_model.confirmations else {},
+                    is_disputed=p_model.is_disputed
                 ))
             domain_rounds.append(Round(
                 id=r_model.id,
@@ -95,7 +116,7 @@ class EventRepository:
             organizer_id=model.organizer_id,
             ruleset_id=model.ruleset_id,
             join_code=model.join_code,
-            players=model.players,
+            players=list(model.players),
             status=EventStatus(model.status),
             created_at=model.created_at,
             round_number=model.round_number,
@@ -115,9 +136,13 @@ class EventRepository:
                     id=p_domain.id,
                     round_id=r_domain.id,
                     table_number=p_domain.table_number,
-                    players_ids=p_domain.players_ids,
+                    players_ids=list(p_domain.players_ids),
                     winner_id=p_domain.winner_id,
-                    is_draw=p_domain.is_draw
+                    is_draw=p_domain.is_draw,
+                    proposed_winner_id=p_domain.proposed_winner_id,
+                    proposed_is_draw=p_domain.proposed_is_draw,
+                    confirmations=dict(p_domain.confirmations),
+                    is_disputed=p_domain.is_disputed
                 ))
             orm_rounds.append(RoundModel(
                 id=r_domain.id,
@@ -134,7 +159,7 @@ class EventRepository:
             organizer_id=event.organizer_id,
             ruleset_id=event.ruleset_id,
             join_code=event.join_code,
-            players=event.players,
+            players=list(event.players),
             status=event.status.value,
             created_at=event.created_at,
             round_number=event.round_number,
@@ -157,6 +182,12 @@ class EventRepository:
     def get_by_organizer(self, organizer_id: str) -> List[Event]:
         models = self.session.query(EventModel).filter(EventModel.organizer_id == organizer_id).all()
         return [self._map_to_domain(m) for m in models]
+
+    def get_by_player(self, player_id: str) -> List[Event]:
+        models = self.session.query(EventModel).all()
+        events = [self._map_to_domain(m) for m in models]
+        # Filtrar en memoria por simplicidad ya que los players son JSON array
+        return [e for e in events if player_id in e.players]
 
     def get_pod_by_id(self, pod_id: str) -> Optional[Event]:
         # Para encontrar a qué evento pertenece un pod, podemos hacer un join o buscar el pod y luego el evento

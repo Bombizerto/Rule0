@@ -1,7 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+
+import PodCard from './PodCard';
+import PlayerList from './PlayerList';
 
 function AdminView({ eventId, onBack }) {
-
     const [eventData, setEventData] = useState(null);
 
     useEffect(() => {
@@ -9,11 +12,11 @@ function AdminView({ eventId, onBack }) {
             try {
                 const response = await fetch(`http://127.0.0.1:8000/matchmaking/events/${eventId}`);
                 const data = await response.json();
-                setEventData(data)
+                setEventData(data);
             } catch (err) {
                 console.error("Error cargando datos del evento:", err);
             }
-        }
+        };
         fetchEventData();
     }, [eventId]);
 
@@ -40,6 +43,7 @@ function AdminView({ eventId, onBack }) {
             alert("Error de conexión con el servidor");
         }
     };
+
     const handleReportWinner = async (podId, winnerId, alias) => {
         try {
             const response = await fetch(`http://127.0.0.1:8000/matchmaking/pods/${podId}/report-winner`, {
@@ -48,12 +52,19 @@ function AdminView({ eventId, onBack }) {
                 body: JSON.stringify({ winner_id: winnerId })
             });
             if (!response.ok) throw new Error("Fallo al reportar");
-            // Actualizamos la pantalla al vuelo
             setEventData(prev => ({
                 ...prev,
                 rounds: prev.rounds.map(r => r.id === activeRound.id ? {
                     ...r,
-                    pods: r.pods.map(p => p.id === podId ? { ...p, winner_id: winnerId, is_draw: false } : p)
+                    pods: r.pods.map(p => p.id === podId ? {
+                        ...p,
+                        winner_id: winnerId,
+                        is_draw: false,
+                        is_disputed: false,
+                        proposed_winner_id: null,
+                        proposed_is_draw: false,
+                        confirmations: []
+                    } : p)
                 } : r)
             }));
         } catch (err) {
@@ -61,18 +72,26 @@ function AdminView({ eventId, onBack }) {
             alert("Error al reportar victoria");
         }
     };
+
     const handleReportDraw = async (podId) => {
         try {
             const response = await fetch(`http://127.0.0.1:8000/matchmaking/pods/${podId}/report-draw`, {
                 method: 'POST'
             });
             if (!response.ok) throw new Error("Fallo al reportar");
-            // Actualizamos la pantalla al vuelo
             setEventData(prev => ({
                 ...prev,
                 rounds: prev.rounds.map(r => r.id === activeRound.id ? {
                     ...r,
-                    pods: r.pods.map(p => p.id === podId ? { ...p, is_draw: true, winner_id: null } : p)
+                    pods: r.pods.map(p => p.id === podId ? {
+                        ...p,
+                        is_draw: true,
+                        winner_id: null,
+                        is_disputed: false,
+                        proposed_winner_id: null,
+                        proposed_is_draw: false,
+                        confirmations: []
+                    } : p)
                 } : r)
             }));
         } catch (err) {
@@ -80,13 +99,14 @@ function AdminView({ eventId, onBack }) {
             alert("Error al reportar empate");
         }
     };
+
     const handleStatusChange = async (playerId, currentStatus, action) => {
         try {
             if (currentStatus === action) {
                 alert("El estado del jugador ya es el mismo que el seleccionado");
                 return;
             }
-            const newstatus = action === "PAUSED" && currentStatus === "paused" ? "active" : action.toLowerCase()
+            const newstatus = action === "PAUSED" && currentStatus === "paused" ? "active" : action.toLowerCase();
             const response = await fetch(`http://127.0.0.1:8000/matchmaking/events/${eventId}/change_player_status`, {
                 method: 'POST',
                 headers: {
@@ -117,6 +137,7 @@ function AdminView({ eventId, onBack }) {
             alert("Error de conexión con el servidor");
         }
     };
+
     const handleCloseRound = async () => {
         try {
             const response = await fetch(`http://127.0.0.1:8000/matchmaking/events/${eventId}/close-round`, {
@@ -127,7 +148,6 @@ function AdminView({ eventId, onBack }) {
                 alert(`Error: ${error.detail}`);
             } else {
                 alert("¡Ronda cerrada!");
-                // Actualizamos react para forzar la vuelta al panel de Preparación
                 setEventData(prev => ({
                     ...prev,
                     rounds: prev.rounds.map(r => r.id === activeRound.id ? { ...r, is_active: false } : r)
@@ -159,7 +179,84 @@ function AdminView({ eventId, onBack }) {
         }
     };
 
+    const onDragEnd = async (result) => {
+        const { destination, source, draggableId } = result;
+
+        if (!destination) return;
+        if (
+            destination.droppableId === source.droppableId &&
+            destination.index === source.index
+        ) {
+            return;
+        }
+
+        // 1. Optimistic Update Local
+        console.log(`DND: Se movió el jugador ${draggableId} de ${source.droppableId} a ${destination.droppableId}`);
+
+        // Guardamos copia de seguridad para revertir si hay fallo (ej: mesa llena)
+        const previousEventData = eventData;
+
+        setEventData(prev => {
+            const newEventData = { ...prev };
+            // Hacemos deep copy inmutable de los arrays (rounds y pods)
+            newEventData.rounds = prev.rounds.map((round, idx) => {
+                if (idx !== prev.rounds.length - 1) return round;
+
+                return {
+                    ...round,
+                    pods: round.pods.map(pod => {
+                        // Quitamos del origen
+                        if (pod.id === source.droppableId) {
+                            return { ...pod, players_ids: pod.players_ids.filter(id => id !== draggableId) };
+                        }
+                        // Metemos en destino respetando la posición
+                        if (pod.id === destination.droppableId) {
+                            const newPlayers = [...pod.players_ids];
+                            newPlayers.splice(destination.index, 0, draggableId);
+                            return { ...pod, players_ids: newPlayers };
+                        }
+                        return pod;
+                    })
+                };
+            });
+            return newEventData;
+        });
+
+        // 2. Llamada a Backend
+        try {
+            const response = await fetch(`http://127.0.0.1:8000/matchmaking/pods/swap-players`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    source_pod_id: source.droppableId,
+                    target_pod_id: destination.droppableId,
+                    player_id: draggableId
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                alert(`Error al mover jugador: ${error.detail}`);
+                // Revertimos el Optimistic Update
+                setEventData(previousEventData);
+            }
+        } catch (err) {
+            console.error("Fallo llamada swap:", err);
+            alert("Error de conexión al mover jugador");
+            // Revertimos en caso de fallo de red
+            setEventData(previousEventData);
+        }
+    };
+
     const activeRound = eventData?.rounds?.[eventData.rounds.length - 1];
+
+    if (!eventData) return (
+        <div className="loading-state glass-panel fade-in">
+            <div className="spinner"></div>
+            <p>Cargando torneo...</p>
+        </div>
+    );
+
     return (
         <main className="glass-panel admin-dashboard">
             <header className="admin-header" style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
@@ -188,46 +285,30 @@ function AdminView({ eventId, onBack }) {
                                 Cerrar Ronda
                             </button>
                         </div>
-
-                        <div className="pods-grid">
-                            {/* Recorremos todas las mesas (pods) de la ronda activa */}
-                            {activeRound.pods.map(pod => (
-                                <div key={pod.id} className="pod-card glass-panel-inner hover-lift">
-                                    <div className="pod-header">
-                                        <h4>Mesa {pod.table_number}</h4>
-                                        {pod.is_draw && <span className="status-badge warning">Empate</span>}
-                                        {pod.winner_id && <span className="status-badge success">Ganador Decidido</span>}
-                                    </div>
-
-                                    <div className="pod-players-list">
-                                        {/* Iteramos los IDs de los jugadores sentados en esta mesa */}
-                                        {pod.players_ids.map(playerId => {
-                                            // El truco mágico: buscamos cómo se llama ese jugador
-                                            const playerInfo = eventData.players.find(p => p.id === playerId);
-                                            const alias = playerInfo ? playerInfo.alias : "Desconocido";
-                                            const isWinner = pod.winner_id === playerId;
-
-                                            return (
-                                                <div key={playerId} className={`pod-player-row ${isWinner ? 'is-winner' : ''}`}>
-                                                    <span className="player-alias">{alias}</span>
-                                                    <button className={`win-action-btn ${isWinner ? 'active-win' : ''}`}
-                                                        onClick={() => handleReportWinner(pod.id, playerId, alias)}>
-                                                        {isWinner ? '🏆 Ganador' : 'Win'}
-                                                    </button>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                    <hr className="glass-divider" />
-
-                                    {/* Botón de empate para la mesa entera */}
-                                    <button className={`draw-action-btn ${pod.is_draw ? 'active-draw' : ''}`}
-                                        onClick={() => handleReportDraw(pod.id)}>
-                                        🤝 Empate (Draw)
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
+                        <DragDropContext onDragEnd={onDragEnd}>
+                            <div className="pods-grid">
+                                {activeRound.pods.map(pod => (
+                                    <Droppable droppableId={pod.id.toString()} key={pod.id}>
+                                        {(provided) => (
+                                            <div
+                                                ref={provided.innerRef}
+                                                {...provided.droppableProps}
+                                                style={{ minHeight: '150px' }} // Asegura a droppable tener espacio
+                                            >
+                                                <PodCard
+                                                    pod={pod}
+                                                    activeRound={activeRound}
+                                                    eventData={eventData}
+                                                    handleReportWinner={handleReportWinner}
+                                                    handleReportDraw={handleReportDraw}
+                                                />
+                                                {provided.placeholder}
+                                            </div>
+                                        )}
+                                    </Droppable>
+                                ))}
+                            </div>
+                        </DragDropContext>
                     </section>
                 ) : (
                     <section className="preparation-section fade-in">
@@ -250,44 +331,14 @@ function AdminView({ eventId, onBack }) {
                         </div>
 
                         <div className="players-list-container">
-
-                            {eventData?.players?.length > 0 ? (
-                                // Si hay jugadores, los recorremos uno a uno con .map()
-                                eventData.players.map((player) => {
-                                    const st = player.status.toLowerCase();
-                                    return (
-                                        <div key={player.id} className={`player-row-card glass-panel-inner hover-lift status-${st}`}>
-                                            <div className="player-info-col">
-                                                <h4>{player.alias}</h4>
-                                                <span className={`status-badge ${st}`}>
-                                                    ACTIVO
-                                                </span>
-                                            </div>
-                                            <div className="player-actions-col">
-                                                <button className={`action-btn btn-pause ${st === 'paused' ? 'is-paused' : ''}`}
-                                                    onClick={() => handleStatusChange(player.id, player.status, 'PAUSED')}>
-                                                    {st === 'paused' ? '▶ Reanudar' : '⏸ Pausar'}
-                                                </button>
-                                                <button className={`action-btn btn-drop ${st === 'dropped' ? 'is-dropped' : ''}`}
-                                                    onClick={() => handleStatusChange(player.id, player.status, 'dropped')}
-                                                    disabled={st === 'dropped'}>
-                                                    {st === 'dropped' ? '💥 Eliminado' : '🔥 Drop'}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    );
-                                })
-                            ) : (
-                                // Si no hay jugadores o aún está cargando
-                                <div className="empty-state glass-panel-inner">
-                                    <p>No hay jugadores en este evento o los datos están cargando...</p>
-                                </div>
-                            )}
+                            <PlayerList players={eventData?.players} handleStatusChange={handleStatusChange} />
                         </div>
-                    </section>)}
+                    </section>
+                )}
             </div>
         </main>
-    )
+    );
 }
 
-export default AdminView
+export default AdminView;
+

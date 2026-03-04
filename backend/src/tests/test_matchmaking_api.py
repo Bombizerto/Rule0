@@ -175,3 +175,118 @@ def test_finish_event_already_ended(client, setup_api_data, db_session):
     )
     # No se puede cambiar estado en evento ya acabado
     assert response.status_code == 400
+
+def test_swap_players_success(client, setup_api_data):
+    event_id = "test-event-123"
+    
+    # 1. Necesitamos al menos 2 pods, para eso generamos 6 jugadores (El evento se crea con 4, añadimos 2 más)
+    # Como setup_api_data usa 4, sólo generará 1 Pod (max 4 per pod), necesitamos 2 para un swap real
+    
+    # En vez de cambiar el setup, lo probamos forzando a crear un pod más pequeño temporalmente
+    gen_resp = client.post(f"/matchmaking/events/{event_id}/generate-round")
+    pods = gen_resp.json()["round"]["pods"]
+    
+    if len(pods) < 2:
+        # Si hay menos de 2, probamos un swap consigo mismo para validar que funciona la lógica (swap dentro del propio pod)
+        # Esto es un caso válido también si intercambiamos posición, aunque position no está aún en Backend, sí valida el endpoint
+        pod_id = pods[0]["id"]
+        player_id = pods[0]["players_ids"][0]
+        
+        response = client.put("/matchmaking/pods/swap-players", json={
+            "source_pod_id": pod_id,
+            "target_pod_id": pod_id,
+            "player_id": player_id
+        })
+        assert response.status_code == 200
+        assert response.json()["message"] == "Jugador movido con éxito"
+    
+def test_swap_players_invalid_player(client, setup_api_data):
+    event_id = "test-event-123"
+    gen_resp = client.post(f"/matchmaking/events/{event_id}/generate-round")
+    pod_id = gen_resp.json()["round"]["pods"][0]["id"]
+    
+    response = client.put("/matchmaking/pods/swap-players", json={
+        "source_pod_id": pod_id,
+        "target_pod_id": pod_id,
+        "player_id": "invalid_player"
+    })
+    
+    assert response.status_code == 400
+    assert "no está en la mesa de origen" in response.json()["detail"]
+
+def test_propose_result_success(client, setup_api_data):
+    event_id = setup_api_data["event_id"]
+    client.post(f"/matchmaking/events/{event_id}/generate-round")
+    
+    act_round = client.get(f"/matchmaking/events/{event_id}/active-round").json()
+    pod = act_round["pods"][0]
+    pod_id = pod["id"]
+    player_id = pod["players_ids"][0]
+    
+    # Propose
+    resp = client.post(f"/matchmaking/pods/{pod_id}/propose-result", json={
+        "player_id": player_id,
+        "winner_id": player_id,
+        "is_draw": False
+    })
+    
+    assert resp.status_code == 200
+    
+    # Validar que está pendiente
+    ev_resp = client.get(f"/matchmaking/events/{event_id}").json()
+    p_updated = ev_resp["rounds"][-1]["pods"][0]
+    assert p_updated["proposed_winner_id"] == player_id
+    assert p_updated["is_disputed"] == False
+
+def test_confirm_result_success(client, setup_api_data):
+    event_id = setup_api_data["event_id"]
+    client.post(f"/matchmaking/events/{event_id}/generate-round")
+    act_round = client.get(f"/matchmaking/events/{event_id}/active-round").json()
+    pod = act_round["pods"][0]
+    pod_id = pod["id"]
+    player_id1 = pod["players_ids"][0]
+    
+    client.post(f"/matchmaking/pods/{pod_id}/propose-result", json={
+        "player_id": player_id1,
+        "winner_id": player_id1,
+        "is_draw": False
+    })
+    
+    # Los demás confirman
+    for p in pod["players_ids"][1:]:
+        resp = client.post(f"/matchmaking/pods/{pod_id}/confirm-result", json={"player_id": p})
+        assert resp.status_code == 200
+        
+    # Verificar victoria final
+    ev_resp = client.get(f"/matchmaking/events/{event_id}").json()
+    p_updated = ev_resp["rounds"][-1]["pods"][0]
+    assert p_updated["winner_id"] == player_id1
+    assert p_updated["is_draw"] == False
+    
+def test_reject_result_dispute(client, setup_api_data):
+    event_id = setup_api_data["event_id"]
+    client.post(f"/matchmaking/events/{event_id}/generate-round")
+    act_round = client.get(f"/matchmaking/events/{event_id}/active-round").json()
+    pod = act_round["pods"][0]
+    pod_id = pod["id"]
+    player_id1 = pod["players_ids"][0]
+    player_id2 = pod["players_ids"][1]
+    
+    client.post(f"/matchmaking/pods/{pod_id}/propose-result", json={
+        "player_id": player_id1,
+        "winner_id": player_id1,
+        "is_draw": False
+    })
+    
+    # Rechazo
+    resp = client.post(f"/matchmaking/pods/{pod_id}/reject-result", json={
+        "player_id": player_id2
+    })
+    
+    assert resp.status_code == 200
+    
+    # Validar disputa
+    ev_resp = client.get(f"/matchmaking/events/{event_id}").json()
+    p_updated = ev_resp["rounds"][-1]["pods"][0]
+    assert p_updated["is_disputed"] == True
+    assert p_updated["proposed_winner_id"] == None

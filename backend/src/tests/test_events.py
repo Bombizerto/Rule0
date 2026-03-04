@@ -235,3 +235,55 @@ def test_presentation_get_events_by_organizer_empty(client, db_session):
     assert isinstance(data, list)
     assert len(data) == 0
 
+
+def test_presentation_login_success(client, db_session):
+    """Prueba que el login funciona con un usuario válido."""
+    from domain.entities import User, Role
+    from infrastructure.repositories import UserRepository
+    user_repo = UserRepository(db_session)
+    user_repo.save(User(id="login-test-id", alias="testlogin", password="mypassword", role=Role.PLAYER))
+    
+    response = client.post("/auth/login", json={"alias": "testlogin", "password": "mypassword"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["alias"] == "testlogin"
+    assert data["role"] == Role.PLAYER.value
+    assert data["message"] == "Login successful"
+
+def test_presentation_login_failure(client, db_session):
+    """Prueba que el login falla con credenciales inválidas."""
+    response = client.post("/auth/login", json={"alias": "testlogin", "password": "wrongpassword"})
+    assert response.status_code == 401
+    
+def test_presentation_get_events_by_player_success(client, db_session):
+    """Prueba que el endpoint devuelve correctamente los eventos donde el jugador está."""
+    repo = EventRepository(db_session)
+    now = datetime.now(UTC)
+    repo.save(Event(
+            id="evt-player-1",
+            title="Torneo Player 1",
+            organizer_id="org-555",
+            ruleset_id="ruleset-1",
+            join_code="PLAY55",
+            players=["player-target", "other-player"],
+            rounds=[],
+            created_at=now,
+            player_status={"player-target": PlayerStatus.ACTIVE}
+        ))
+    repo.save(Event(
+            id="evt-player-2",
+            title="Torneo Player 2",
+            organizer_id="org-555",
+            ruleset_id="ruleset-1",
+            join_code="PLAY56",
+            players=["other-player"],
+            rounds=[],
+            created_at=now,
+            player_status={"other-player": PlayerStatus.ACTIVE}
+        ))
+        
+    response = client.get("/events/player/player-target")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["id"] == "evt-player-1"

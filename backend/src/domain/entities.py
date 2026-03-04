@@ -3,6 +3,9 @@ from typing import Optional, List, Dict
 from datetime import datetime
 from enum import Enum
 
+class Role(str, Enum):
+    ADMIN = "admin"
+    PLAYER = "player"
 
 @dataclass
 class User:
@@ -12,8 +15,10 @@ class User:
     """
     id: str  # Simularemos un UUID
     alias: str
+    password: Optional[str] = None
     email: Optional[str] = None
     is_guest: bool = False
+    role: Role = Role.PLAYER
     seat_history: Dict[int, int] = field(default_factory=lambda: {1: 0, 2: 0, 3: 0, 4: 0, 5:0})
 
 class EventStatus(str, Enum):
@@ -62,6 +67,10 @@ class Pod:
     players_ids: List[str]
     winner_id: Optional[str] = None
     is_draw: bool = False
+    proposed_winner_id: Optional[str] = None
+    proposed_is_draw: bool = False
+    confirmations: Dict[str, bool] = field(default_factory=dict)
+    is_disputed: bool = False
     
 @dataclass
 class Round:
