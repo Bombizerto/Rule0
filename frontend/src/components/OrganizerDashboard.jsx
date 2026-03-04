@@ -9,6 +9,7 @@ const OrganizerDashboard = ({ organizerId, onSelectEvent }) => {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [newEventTitle, setNewEventTitle] = useState('');
     const [isCreating, setIsCreating] = useState(false);
+    const [autoJoin, setAutoJoin] = useState(false);
 
     const fetchEvents = async () => {
         try {
@@ -53,11 +54,25 @@ const OrganizerDashboard = ({ organizerId, onSelectEvent }) => {
             if (!response.ok) {
                 throw new Error('No se pudo crear el torneo');
             }
+            const eventData = await response.json();
+
+            // Auto-join si se ha marcado la casilla
+            if (autoJoin && eventData.join_code) {
+                await fetch('http://127.0.0.1:8000/events/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: organizerId,
+                        join_code: eventData.join_code
+                    })
+                });
+            }
 
             // Refrescamos la lista cerrando el modal
             await fetchEvents();
             setShowCreateModal(false);
             setNewEventTitle('');
+            setAutoJoin(false);
         } catch (err) {
             alert(err.message);
         } finally {
@@ -164,6 +179,16 @@ const OrganizerDashboard = ({ organizerId, onSelectEvent }) => {
                                         background: 'rgba(255,255,255,0.05)', color: 'white'
                                     }}
                                 />
+                            </div>
+                            <div className="form-group" style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <input
+                                    type="checkbox"
+                                    id="autoJoin"
+                                    checked={autoJoin}
+                                    onChange={(e) => setAutoJoin(e.target.checked)}
+                                    style={{ width: '1.2rem', height: '1.2rem', accentColor: 'var(--accent-primary)' }}
+                                />
+                                <label htmlFor="autoJoin" style={{ color: 'var(--text-muted)' }}>Participar en el torneo como jugador</label>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
                                 <button type="button" className="btn btn-secondary" onClick={() => setShowCreateModal(false)} disabled={isCreating}>

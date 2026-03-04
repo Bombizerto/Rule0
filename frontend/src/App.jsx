@@ -1,40 +1,95 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import './App.css'
-import PublicView from './components/PublicView'
+import LoginView from './components/LoginView'
+import PlayerHubView from './components/PlayerHubView'
 import AdminView from './components/AdminView'
 import OrganizerDashboard from './components/OrganizerDashboard'
+import MyDashboard from './components/MyDashboard'
 
 function App() {
-  const [currentView, setCurrentView] = useState('dashboard');
+  const [currentView, setCurrentView] = useState('login');
+  const [currentUser, setCurrentUser] = useState(null);
+
+  // Admin App State
   const [currentEventId, setCurrentEventId] = useState(null);
 
-  // MOCK: Suponemos que el usuario logueado es siempre 'test-org-123' (Aidan)
-  const LOGGED_IN_ORGANIZER = "test-org-123";
+  // Player Auth State
+  const [playerEventData, setPlayerEventData] = useState(null);
 
-  const handleSelectEvent = (eventId) => {
+  useEffect(() => {
+    const savedSession = localStorage.getItem('rule0_session');
+    if (savedSession) {
+      try {
+        const user = JSON.parse(savedSession);
+        setCurrentUser(user);
+        if (user.role === 'admin') {
+          setCurrentView('dashboard');
+        } else {
+          setCurrentView('player_hub');
+        }
+      } catch (e) {
+        console.error("Session corrupta, borrando...", e);
+        localStorage.removeItem('rule0_session');
+      }
+    }
+  }, []);
+
+  const handleLoginSuccess = (userData) => {
+    setCurrentUser(userData);
+    localStorage.setItem('rule0_session', JSON.stringify(userData));
+    if (userData.role === 'admin') {
+      setCurrentView('dashboard');
+    } else {
+      setCurrentView('player_hub');
+    }
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setCurrentView('login');
+    setCurrentEventId(null);
+    setPlayerEventData(null);
+    localStorage.removeItem('rule0_session');
+  };
+
+  const handleSelectEventAdmin = (eventId) => {
     setCurrentEventId(eventId);
-    setCurrentView('admin'); // Al elegir un torneo, pasamos al panel de control de ese torneo
+    setCurrentView('admin');
+  };
+
+  const handleSelectEventPlayer = (eventData) => {
+    setPlayerEventData(eventData);
+    setCurrentView('player_dashboard');
   };
 
   const renderView = () => {
     switch (currentView) {
+      case 'login':
+        return <LoginView onLoginSuccess={handleLoginSuccess} />;
       case 'dashboard':
         return <OrganizerDashboard
-          organizerId={LOGGED_IN_ORGANIZER}
-          onSelectEvent={handleSelectEvent}
+          organizerId={currentUser?.id}
+          onSelectEvent={handleSelectEventAdmin}
         />;
       case 'admin':
         return <AdminView
           eventId={currentEventId}
           onBack={() => setCurrentView('dashboard')}
         />;
-      case 'public':
-        return <PublicView
-          eventId={currentEventId}
-          onBack={() => setCurrentView('dashboard')}
+      case 'player_hub':
+        return <PlayerHubView
+          user={currentUser}
+          onSelectEvent={handleSelectEventPlayer}
+          onLogout={handleLogout}
+        />;
+      case 'player_dashboard':
+        return <MyDashboard
+          eventData={playerEventData}
+          playerId={currentUser?.id}
+          onLogout={() => setCurrentView('player_hub')}
         />;
       default:
-        return <OrganizerDashboard organizerId={LOGGED_IN_ORGANIZER} onSelectEvent={handleSelectEvent} />;
+        return <LoginView onLoginSuccess={handleLoginSuccess} />;
     }
   };
 
@@ -59,44 +114,70 @@ function App() {
           </p>
         </div>
 
-        <nav style={{ display: 'flex', gap: '15px' }}>
-          <button
-            className="primary-button"
-            onClick={() => setCurrentView('dashboard')}
-            style={{
-              background: currentView === 'dashboard' ? 'var(--accent-primary)' : 'transparent',
-              color: currentView === 'dashboard' ? 'black' : 'white',
-              border: '2px solid var(--accent-primary)',
-            }}
-          >
-            Dashboard
-          </button>
-
-          {currentEventId && (
-            <button
-              className="primary-button"
-              onClick={() => setCurrentView('admin')}
-              style={{
-                background: currentView === 'admin' ? 'var(--accent-secondary)' : 'transparent',
-                color: 'white',
-                border: '2px solid var(--accent-secondary)',
-              }}
-            >
-              Admin Panel
-            </button>
+        <nav style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+          {currentUser && (
+            <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginRight: '1rem' }}>
+              {currentUser.alias} ({currentUser.role})
+            </span>
           )}
 
-          {currentEventId && (
+          {currentUser?.role === 'admin' && (
+            <>
+              <button
+                className="primary-button"
+                onClick={() => setCurrentView('dashboard')}
+                style={{
+                  background: currentView === 'dashboard' ? 'var(--accent-primary)' : 'transparent',
+                  color: currentView === 'dashboard' ? 'black' : 'white',
+                  border: '2px solid var(--accent-primary)',
+                }}
+              >
+                Mis Torneos
+              </button>
+              {currentEventId && (
+                <button
+                  className="primary-button"
+                  onClick={() => setCurrentView('admin')}
+                  style={{
+                    background: currentView === 'admin' ? 'var(--accent-secondary)' : 'transparent',
+                    color: 'white',
+                    border: '2px solid var(--accent-secondary)',
+                  }}
+                >
+                  Admin Panel
+                </button>
+              )}
+              <button
+                className="primary-button"
+                onClick={() => setCurrentView('player_hub')}
+                style={{
+                  background: currentView === 'player_hub' ? 'var(--accent-primary)' : 'transparent',
+                  color: currentView === 'player_hub' ? 'black' : 'white',
+                  border: '2px solid var(--accent-primary)',
+                }}
+              >
+                Modo Jugador
+              </button>
+            </>
+          )}
+
+          {currentUser?.role === 'player' && (
             <button
               className="primary-button"
-              onClick={() => setCurrentView('public')}
+              onClick={() => setCurrentView('player_hub')}
               style={{
-                background: currentView === 'public' ? 'var(--accent-primary)' : 'transparent',
-                color: currentView === 'public' ? 'black' : 'white',
+                background: currentView === 'player_hub' ? 'var(--accent-primary)' : 'transparent',
+                color: currentView === 'player_hub' ? 'black' : 'white',
                 border: '2px solid var(--accent-primary)',
               }}
             >
-              Public View
+              Mis Torneos
+            </button>
+          )}
+
+          {currentUser && (
+            <button className="danger-button" onClick={handleLogout} style={{ marginLeft: '1rem', padding: '0.5rem 1rem' }}>
+              Salir
             </button>
           )}
         </nav>

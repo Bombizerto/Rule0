@@ -1,13 +1,14 @@
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from typing import Optional, List
 from datetime import datetime
-from domain.entities import EventStatus, PlayerStatus
+from domain.entities import EventStatus, PlayerStatus, Role
 
 class UserBase(BaseModel):
     """Atributos compartidos por todos los esquemas de Usuario."""
     alias: str = Field(..., min_length=2, max_length=50, description="El nombre que se mostrará en la mesa.")
     email: Optional[EmailStr] = None
     is_guest: bool = False
+    role: Role = Role.PLAYER
 
 class UserCreate(UserBase):
     """Esquema para validar los datos que entran cuando se crea un usuario."""
@@ -52,6 +53,10 @@ class PodResponse(BaseModel):
     players_ids: List[str]
     winner_id: Optional[str] = None
     is_draw: bool = False
+    proposed_winner_id: Optional[str] = None
+    proposed_is_draw: bool = False
+    confirmations: dict = Field(default_factory=dict)
+    is_disputed: bool = False
     model_config = ConfigDict(from_attributes=True)
 
 class RoundResponse(BaseModel):
@@ -80,8 +85,36 @@ class EventRegistrationRequest(BaseModel):
 class PodWinnerReport(BaseModel):
     winner_id: str
 
+class PodProposeResultRequest(BaseModel):
+    player_id: str
+    winner_id: Optional[str] = None
+    is_draw: bool = False
+
+class PodConfirmResultRequest(BaseModel):
+    player_id: str
+
+class PodRejectResultRequest(BaseModel):
+    player_id: str
+
 class PlayerStatusUpdate(BaseModel):
     player_id: str
     status: PlayerStatus
 
+class PlayerLoginRequest(BaseModel):
+    join_code: str
+    player_alias: str
+    password: str
 
+class LoginRequest(BaseModel):
+    alias: str
+    password: str
+
+class LoginResponse(BaseModel):
+    id: str
+    alias: str
+    role: Role
+    message: str
+
+class GuestJoinRequest(BaseModel):
+    alias: str
+    join_code: str
