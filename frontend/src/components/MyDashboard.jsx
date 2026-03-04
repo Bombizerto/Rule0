@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import API_BASE_URL from '../config';
 import Leaderboard from './Leaderboard';
 
 
@@ -13,7 +14,7 @@ function MyDashboard({ eventData, playerId, onLogout }) {
     // Cargar el mapa de nombres y el leaderboard al montar
     useEffect(() => {
         if (!eventData?.id) return;
-        fetch(`http://127.0.0.1:8000/events/${eventData.id}/players-info`)
+        fetch(`${API_BASE_URL}/events/${eventData.id}/players-info`)
             .then(r => r.ok ? r.json() : [])
             .then(list => {
                 const map = {};
@@ -38,7 +39,7 @@ function MyDashboard({ eventData, playerId, onLogout }) {
 
     const refreshEventData = async () => {
         try {
-            const resp = await fetch(`http://127.0.0.1:8000/matchmaking/events/${localEventData.id}`);
+            const resp = await fetch(`${API_BASE_URL}/matchmaking/events/${localEventData.id}`);
             if (resp.ok) {
                 const data = await resp.json();
                 setLocalEventData(data);
@@ -54,7 +55,7 @@ function MyDashboard({ eventData, playerId, onLogout }) {
         setLoadingAction(true);
         setActionError(null);
         try {
-            const resp = await fetch(`http://127.0.0.1:8000/matchmaking/pods/${currentPod.id}/propose-result`, {
+            const resp = await fetch(`${API_BASE_URL}/matchmaking/pods/${currentPod.id}/propose-result`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -79,7 +80,7 @@ function MyDashboard({ eventData, playerId, onLogout }) {
         setLoadingAction(true);
         setActionError(null);
         try {
-            const resp = await fetch(`http://127.0.0.1:8000/matchmaking/pods/${currentPod.id}/confirm-result`, {
+            const resp = await fetch(`${API_BASE_URL}/matchmaking/pods/${currentPod.id}/confirm-result`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ player_id: playerId })
@@ -101,7 +102,7 @@ function MyDashboard({ eventData, playerId, onLogout }) {
         setLoadingAction(true);
         setActionError(null);
         try {
-            const resp = await fetch(`http://127.0.0.1:8000/matchmaking/pods/${currentPod.id}/reject-result`, {
+            const resp = await fetch(`${API_BASE_URL}/matchmaking/pods/${currentPod.id}/reject-result`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ player_id: playerId })
@@ -133,7 +134,7 @@ function MyDashboard({ eventData, playerId, onLogout }) {
         setLoadingAction(true);
         setActionError(null);
         try {
-            const resp = await fetch(`http://127.0.0.1:8000/matchmaking/events/${localEventData.id}/self_change_status`, {
+            const resp = await fetch(`${API_BASE_URL}/matchmaking/events/${localEventData.id}/self_change_status`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

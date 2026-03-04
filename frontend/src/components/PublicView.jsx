@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import API_BASE_URL from '../config';
 
 function PublicView({ onLogin, onBack }) {
     const [joinCode, setJoinCode] = useState('');
@@ -13,7 +14,7 @@ function PublicView({ onLogin, onBack }) {
         setLoading(true);
 
         try {
-            const resp = await fetch(`http://127.0.0.1:8000/matchmaking/events/login-player`, {
+            const resp = await fetch(`${API_BASE_URL}/matchmaking/events/login-player`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

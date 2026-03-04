@@ -4,6 +4,7 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import PodCard from './PodCard';
 import PlayerList from './PlayerList';
 import Leaderboard from './Leaderboard';
+import API_BASE_URL from '../config';
 
 
 function AdminView({ eventId, onBack }) {
@@ -16,7 +17,7 @@ function AdminView({ eventId, onBack }) {
     useEffect(() => {
         const fetchEventData = async () => {
             try {
-                const response = await fetch(`http://127.0.0.1:8000/matchmaking/events/${eventId}`);
+                const response = await fetch(`${API_BASE_URL}/matchmaking/events/${eventId}`);
                 const data = await response.json();
                 setEventData(data);
             } catch (err) {
@@ -28,7 +29,7 @@ function AdminView({ eventId, onBack }) {
 
     const handleGenerateRound = async () => {
         try {
-            const response = await fetch(`http://127.0.0.1:8000/matchmaking/events/${eventId}/generate-round`, {
+            const response = await fetch(`${API_BASE_URL}/matchmaking/events/${eventId}/generate-round`, {
                 method: 'POST',
             });
 
@@ -52,7 +53,7 @@ function AdminView({ eventId, onBack }) {
 
     const handleReportWinner = async (podId, winnerId, alias) => {
         try {
-            const response = await fetch(`http://127.0.0.1:8000/matchmaking/pods/${podId}/report-winner`, {
+            const response = await fetch(`${API_BASE_URL}/matchmaking/pods/${podId}/report-winner`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ winner_id: winnerId })
@@ -83,7 +84,7 @@ function AdminView({ eventId, onBack }) {
 
     const handleReportDraw = async (podId) => {
         try {
-            const response = await fetch(`http://127.0.0.1:8000/matchmaking/pods/${podId}/report-draw`, {
+            const response = await fetch(`${API_BASE_URL}/matchmaking/pods/${podId}/report-draw`, {
                 method: 'POST'
             });
             if (!response.ok) throw new Error("Fallo al reportar");
@@ -123,7 +124,7 @@ function AdminView({ eventId, onBack }) {
                 return;
             }
 
-            const response = await fetch(`http://127.0.0.1:8000/matchmaking/events/${eventId}/change_player_status`, {
+            const response = await fetch(`${API_BASE_URL}/matchmaking/events/${eventId}/change_player_status`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -154,7 +155,7 @@ function AdminView({ eventId, onBack }) {
 
     const handleCloseRound = async () => {
         try {
-            const response = await fetch(`http://127.0.0.1:8000/matchmaking/events/${eventId}/close-round`, {
+            const response = await fetch(`${API_BASE_URL}/matchmaking/events/${eventId}/close-round`, {
                 method: 'POST',
             });
             if (!response.ok) {
@@ -179,7 +180,7 @@ function AdminView({ eventId, onBack }) {
         if (!window.confirm("¿Seguro que quieres finalizar el evento? No se podrán jugar más rondas.")) return;
 
         try {
-            const response = await fetch(`http://127.0.0.1:8000/matchmaking/events/${eventId}/close-event`, {
+            const response = await fetch(`${API_BASE_URL}/matchmaking/events/${eventId}/close-event`, {
                 method: 'POST',
             });
             if (!response.ok) {
@@ -240,7 +241,7 @@ function AdminView({ eventId, onBack }) {
 
         // 2. Llamada a Backend
         try {
-            const response = await fetch(`http://127.0.0.1:8000/matchmaking/pods/swap-players`, {
+            const response = await fetch(`${API_BASE_URL}/matchmaking/pods/swap-players`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

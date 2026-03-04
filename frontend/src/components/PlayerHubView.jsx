@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import API_BASE_URL from '../config';
 
 function PlayerHubView({ user, onSelectEvent, onLogout }) {
     const [events, setEvents] = useState([]);
@@ -11,7 +12,7 @@ function PlayerHubView({ user, onSelectEvent, onLogout }) {
     const fetchEvents = async () => {
         try {
             setLoading(true);
-            const response = await fetch(`http://127.0.0.1:8000/events/player/${user.id}`);
+            const response = await fetch(`${API_BASE_URL}/events/player/${user.id}`);
             if (!response.ok) throw new Error('Error al cargar mis torneos');
             const data = await response.json();
             setEvents(data);
@@ -32,7 +33,7 @@ function PlayerHubView({ user, onSelectEvent, onLogout }) {
 
         setJoining(true);
         try {
-            const response = await fetch('http://127.0.0.1:8000/events/register', {
+            const response = await fetch('${API_BASE_URL}/events/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

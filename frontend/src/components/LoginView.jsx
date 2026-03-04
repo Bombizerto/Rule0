@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import API_BASE_URL from '../config';
 
 function LoginView({ onLoginSuccess }) {
     const [isGuestMode, setIsGuestMode] = useState(false);
@@ -16,9 +17,9 @@ function LoginView({ onLoginSuccess }) {
         setError('');
 
         try {
-            let url = 'http://127.0.0.1:8000/auth/login';
-            if (isGuestMode) url = 'http://127.0.0.1:8000/auth/guest_join';
-            else if (isRegistering) url = 'http://127.0.0.1:8000/auth/signup';
+            let url = '${API_BASE_URL}/auth/login';
+            if (isGuestMode) url = '${API_BASE_URL}/auth/guest_join';
+            else if (isRegistering) url = '${API_BASE_URL}/auth/signup';
 
             let bodyObj;
             if (isGuestMode) {

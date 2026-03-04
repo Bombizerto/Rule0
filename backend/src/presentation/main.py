@@ -24,13 +24,17 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Configuración de CORS dinámica
+# En producción (Render/Vercel) permitiremos todos los orígenes por ahora para facilitar 
+# el despliegue inicial, pero restrictivo a dominios vercel.app en el futuro.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"], # En producción deberíamos restringir esto
+    allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 app.include_router(matchmaking_router)
 # Endpoint básico de estado (Health Check)
 @app.get("/")

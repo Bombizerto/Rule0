@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import API_BASE_URL from '../config';
 
 const OrganizerDashboard = ({ organizerId, onSelectEvent }) => {
     const [events, setEvents] = useState([]);
@@ -18,7 +19,7 @@ const OrganizerDashboard = ({ organizerId, onSelectEvent }) => {
             setLoading(true);
             // Endpoint local de desarrollo => Usa proxy o ruta completa según tu setup de Vite
             // El organizerId nos viene desde el componente padre (App.js)
-            const response = await fetch(`http://127.0.0.1:8000/events/organizer/${organizerId}`);
+            const response = await fetch(`${API_BASE_URL}/events/organizer/${organizerId}`);
             if (!response.ok) {
                 throw new Error('Error al cargar la lista de eventos');
             }
@@ -43,7 +44,7 @@ const OrganizerDashboard = ({ organizerId, onSelectEvent }) => {
         try {
             // MOCK: Asumimos que todos los torneos usan el ruleset de Casual Commander que inyectamos en el seed
             // Lo ideal sería obtener la lista de rulesets del servidor y elegir uno en un select
-            const response = await fetch('http://127.0.0.1:8000/events/', {
+            const response = await fetch('${API_BASE_URL}/events/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -60,7 +61,7 @@ const OrganizerDashboard = ({ organizerId, onSelectEvent }) => {
 
             // Auto-join si se ha marcado la casilla
             if (autoJoin && eventData.join_code) {
-                await fetch('http://127.0.0.1:8000/events/register', {
+                await fetch('${API_BASE_URL}/events/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -147,7 +148,7 @@ const OrganizerDashboard = ({ organizerId, onSelectEvent }) => {
                                         const isOpen = expandedLeaderboard === event.id;
                                         setExpandedLeaderboard(isOpen ? null : event.id);
                                         if (!isOpen && !leaderboards[event.id]) {
-                                            const res = await fetch(`http://127.0.0.1:8000/matchmaking/events/${event.id}/leaderboard`);
+                                            const res = await fetch(`${API_BASE_URL}/matchmaking/events/${event.id}/leaderboard`);
                                             if (res.ok) {
                                                 const data = await res.json();
                                                 setLeaderboards(prev => ({ ...prev, [event.id]: data }));
