@@ -5,8 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 import uuid
 from datetime import datetime, UTC
 from presentation.routers.matchmaking import router as matchmaking_router 
-from application.schemas import UserCreate, UserResponse, EventCreate, EventResponse, FormatRulesetCreate, FormatRulesetResponse, EventRegistrationRequest, LoginRequest, LoginResponse
-from domain.entities import User, Event, FormatRuleset, EventStatus, PlayerStatus
+from application.schemas import UserCreate, UserResponse, EventCreate, EventResponse, FormatRulesetCreate, FormatRulesetResponse, EventRegistrationRequest, LoginRequest, LoginResponse, GuestJoinRequest
+from domain.entities import User, Role, Event, FormatRuleset, EventStatus, PlayerStatus
 from infrastructure.database import get_db, engine
 from infrastructure.models_orm import Base
 from infrastructure.repositories import UserRepository, EventRepository, FormatRulesetRepository
@@ -142,6 +142,44 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
         "alias": user.alias,
         "role": user.role,
         "message": "Login successful"
+    }
+
+@app.post("/auth/guest_join", response_model=LoginResponse)
+def guest_join(request: GuestJoinRequest, db: Session = Depends(get_db)):
+    event_repo = EventRepository(db)
+    user_repo = UserRepository(db)
+    
+    # Validar torneo
+    event = event_repo.get_by_join_code(request.join_code)
+    if not event:
+        raise HTTPException(status_code=404, detail="Torneo no encontrado")
+    if event.status != EventStatus.PENDING:
+        raise HTTPException(status_code=400, detail="El evento ya ha comenzado")
+        
+    # Validar alias único
+    existing_user = user_repo.get_by_alias(request.alias)
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Este nombre ya está en uso. Por favor, elige otro.")
+        
+    # Registrar usuario
+    new_user = User(
+        id=str(uuid.uuid4()),
+        alias=request.alias,
+        is_guest=True,
+        role=Role.PLAYER
+    )
+    user_repo.save(new_user)
+    
+    # Inscribir a evento
+    event.players.append(new_user.id)
+    event.player_status[new_user.id] = PlayerStatus.ACTIVE
+    event_repo.save(event)
+    
+    return {
+        "id": new_user.id,
+        "alias": new_user.alias,
+        "role": new_user.role,
+        "message": "Invitado unido con éxito"
     }
 
 @app.get("/events/player/{player_id}", response_model=List[Event])

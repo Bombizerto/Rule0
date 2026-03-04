@@ -287,3 +287,49 @@ def test_presentation_get_events_by_player_success(client, db_session):
     data = response.json()
     assert len(data) == 1
     assert data[0]["id"] == "evt-player-1"
+
+def test_guest_join_success(client, db_session):
+    from domain.entities import Event, EventStatus, Role
+    from infrastructure.repositories import EventRepository
+    from datetime import datetime, UTC
+    
+    repo = EventRepository(db_session)
+    now = datetime.now(UTC)
+    repo.save(Event(
+            id="evt-guest-1", title="Torneo Guest", organizer_id="org-555",
+            ruleset_id="ruleset-1", join_code="GUEST1", players=[],
+            rounds=[], created_at=now, player_status={}, status=EventStatus.PENDING
+        ))
+    response = client.post("/auth/guest_join", json={"alias": "GuestUser", "join_code": "GUEST1"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["alias"] == "GuestUser"
+    assert data["role"] == Role.PLAYER.value
+    
+    # Verificar inscripción
+    event = repo.get_by_id("evt-guest-1")
+    assert data["id"] in event.players
+
+def test_guest_join_invalid_code(client, db_session):
+    response = client.post("/auth/guest_join", json={"alias": "GuestUser2", "join_code": "INVALID99"})
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Torneo no encontrado"
+
+def test_guest_join_alias_exists(client, db_session):
+    from infrastructure.repositories import UserRepository, EventRepository
+    from domain.entities import User, Event, EventStatus, Role
+    from datetime import datetime, UTC
+
+    user_repo = UserRepository(db_session)
+    user_repo.save(User(id="existing-id", alias="ExistingUser", role=Role.PLAYER))
+    
+    repo = EventRepository(db_session)
+    now = datetime.now(UTC)
+    repo.save(Event(
+            id="evt-guest-2", title="Torneo Guest 2", organizer_id="org-555",
+            ruleset_id="ruleset-1", join_code="GUEST2", players=[],
+            rounds=[], created_at=now, player_status={}, status=EventStatus.PENDING
+        ))
+    response = client.post("/auth/guest_join", json={"alias": "ExistingUser", "join_code": "GUEST2"})
+    assert response.status_code == 400
+    assert "nombre ya está en uso" in response.json()["detail"]

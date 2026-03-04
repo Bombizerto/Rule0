@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 
 function LoginView({ onLoginSuccess }) {
+    const [isGuestMode, setIsGuestMode] = useState(false);
     const [alias, setAlias] = useState('');
     const [password, setPassword] = useState('');
+    const [joinCode, setJoinCode] = useState('');
+
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
@@ -12,15 +15,20 @@ function LoginView({ onLoginSuccess }) {
         setError('');
 
         try {
-            const response = await fetch('http://127.0.0.1:8000/auth/login', {
+            const url = isGuestMode ? 'http://127.0.0.1:8000/auth/guest_join' : 'http://127.0.0.1:8000/auth/login';
+            const body = isGuestMode
+                ? JSON.stringify({ alias, join_code: joinCode })
+                : JSON.stringify({ alias, password });
+
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ alias, password })
+                body
             });
 
             if (!response.ok) {
                 const data = await response.json();
-                throw new Error(data.detail || 'Fallo en la autenticación');
+                throw new Error(data.detail || 'Fallo en la operación');
             }
 
             const userData = await response.json();
@@ -35,12 +43,42 @@ function LoginView({ onLoginSuccess }) {
 
     return (
         <div className="glass-panel" style={{ maxWidth: '400px', margin: '4rem auto', padding: '2rem' }}>
-            <h2 style={{ textAlign: 'center', marginBottom: '1.5rem', color: 'var(--accent-primary)' }}>Iniciar Sesión</h2>
+            <h2 style={{ textAlign: 'center', marginBottom: '1.5rem', color: 'var(--accent-primary)' }}>
+                {isGuestMode ? 'Unirse como Invitado' : 'Iniciar Sesión'}
+            </h2>
+
+            <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
+                <button
+                    type="button"
+                    onClick={() => { setIsGuestMode(false); setError(''); }}
+                    style={{
+                        flex: 1, padding: '0.5rem',
+                        background: !isGuestMode ? 'var(--accent-primary)' : 'transparent',
+                        color: !isGuestMode ? 'black' : 'white',
+                        border: '1px solid var(--accent-primary)', borderRadius: '8px', cursor: 'pointer'
+                    }}
+                >
+                    Registrado
+                </button>
+                <button
+                    type="button"
+                    onClick={() => { setIsGuestMode(true); setError(''); }}
+                    style={{
+                        flex: 1, padding: '0.5rem',
+                        background: isGuestMode ? 'var(--accent-secondary)' : 'transparent',
+                        color: 'white',
+                        border: '1px solid var(--accent-secondary)', borderRadius: '8px', cursor: 'pointer'
+                    }}
+                >
+                    Invitado
+                </button>
+            </div>
+
             {error && <div style={{ color: 'var(--danger-color)', marginBottom: '1rem', textAlign: 'center' }}>{error}</div>}
 
             <form onSubmit={handleSubmit}>
                 <div style={{ marginBottom: '1rem' }}>
-                    <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Alias / Usuario</label>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Alias / Nombre en Juego</label>
                     <input
                         type="text"
                         value={alias}
@@ -52,27 +90,46 @@ function LoginView({ onLoginSuccess }) {
                         }}
                     />
                 </div>
-                <div style={{ marginBottom: '1.5rem' }}>
-                    <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Contraseña</label>
-                    <input
-                        type="password"
-                        value={password}
-                        onChange={e => setPassword(e.target.value)}
-                        required
-                        style={{
-                            width: '100%', padding: '0.75rem', borderRadius: '8px',
-                            border: '1px solid var(--border)', background: 'rgba(255,255,255,0.05)', color: 'white'
-                        }}
-                    />
-                </div>
+
+                {!isGuestMode ? (
+                    <div style={{ marginBottom: '1.5rem' }}>
+                        <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Contraseña</label>
+                        <input
+                            type="password"
+                            value={password}
+                            onChange={e => setPassword(e.target.value)}
+                            required
+                            style={{
+                                width: '100%', padding: '0.75rem', borderRadius: '8px',
+                                border: '1px solid var(--border)', background: 'rgba(255,255,255,0.05)', color: 'white'
+                            }}
+                        />
+                    </div>
+                ) : (
+                    <div style={{ marginBottom: '1.5rem' }}>
+                        <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Código de Invitación</label>
+                        <input
+                            type="text"
+                            value={joinCode}
+                            onChange={e => setJoinCode(e.target.value.toUpperCase())}
+                            placeholder="Ej: MTG99"
+                            required
+                            style={{
+                                width: '100%', padding: '0.75rem', borderRadius: '8px',
+                                border: '1px solid var(--border)', background: 'rgba(255,255,255,0.05)', color: 'white',
+                                textTransform: 'uppercase'
+                            }}
+                        />
+                    </div>
+                )}
 
                 <button
                     type="submit"
                     className="primary-button"
                     style={{ width: '100%', padding: '1rem', fontSize: '1.1rem' }}
-                    disabled={loading || !alias || !password}
+                    disabled={loading || !alias || (!isGuestMode ? !password : !joinCode)}
                 >
-                    {loading ? 'Cargando...' : 'Entrar'}
+                    {loading ? 'Cargando...' : (isGuestMode ? 'Unirme al Torneo' : 'Entrar')}
                 </button>
             </form>
 

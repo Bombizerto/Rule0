@@ -114,3 +114,7 @@ class LoginResponse(BaseModel):
     alias: str
     role: Role
     message: str
+
+class GuestJoinRequest(BaseModel):
+    alias: str
+    join_code: str

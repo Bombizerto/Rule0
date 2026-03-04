@@ -147,6 +147,17 @@ function App() {
                   Admin Panel
                 </button>
               )}
+              <button
+                className="primary-button"
+                onClick={() => setCurrentView('player_hub')}
+                style={{
+                  background: currentView === 'player_hub' ? 'var(--accent-primary)' : 'transparent',
+                  color: currentView === 'player_hub' ? 'black' : 'white',
+                  border: '2px solid var(--accent-primary)',
+                }}
+              >
+                Modo Jugador
+              </button>
             </>
           )}
 
