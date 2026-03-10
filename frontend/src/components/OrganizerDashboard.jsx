@@ -177,6 +177,27 @@ const OrganizerDashboard = ({ organizerId, onSelectEvent }) => {
                                 >
                                     Gestionar
                                 </button>
+                                {event.status !== 'ACTIVE' && (
+                                    <button
+                                        className="btn btn-secondary"
+                                        style={{ background: 'transparent', border: '1px solid #ef4444', color: '#ef4444' }}
+                                        onClick={async () => {
+                                            if (window.confirm("¿Seguro que quieres borrar este torneo? Se borrarán todos sus resultados y sus jugadores invitados.")) {
+                                                const res = await fetch(`${API_BASE_URL}/events/${event.id}?organizer_id=${organizerId}`, {
+                                                    method: 'DELETE'
+                                                });
+                                                if (res.ok) {
+                                                    fetchEvents();
+                                                } else {
+                                                    const err = await res.json();
+                                                    alert("Error al borrar: " + err.detail);
+                                                }
+                                            }
+                                        }}
+                                    >
+                                        Eliminar
+                                    </button>
+                                )}
                             </div>
 
                             {/* Panel de leaderboard expandible */}

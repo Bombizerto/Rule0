@@ -154,6 +154,36 @@ def register_to_event(data: EventRegistrationRequest, db: Session = Depends(get_
         repo.save(event)
     return event
 
+@app.delete("/events/{event_id}")
+def delete_event(event_id: str, organizer_id: str, db: Session = Depends(get_db)):
+    """Elimina un torneo si no está activo. También elimina a los jugadores invitados que hayan participado."""
+    event_repo = EventRepository(db)
+    user_repo = UserRepository(db)
+    
+    event = event_repo.get_by_id(event_id)
+    if not event:
+        raise HTTPException(status_code=404, detail="Evento no encontrado")
+        
+    if event.organizer_id != organizer_id:
+        raise HTTPException(status_code=403, detail="No tienes permiso para borrar este torneo")
+        
+    if event.status == EventStatus.ACTIVE:
+        raise HTTPException(status_code=400, detail="No se puede borrar un torneo que está en curso")
+        
+    # Copiamos la lista de jugadores para comprobar si son invitados
+    player_ids = event.players.copy()
+    
+    # 1. Borrar torneo (SQLAlchemy se encarga de Rounds y Pods por el cascade)
+    event_repo.delete(event_id)
+    
+    # 2. Borrar usuarios invitados (is_guest=True)
+    for pid in player_ids:
+        u = user_repo.get_by_id(pid)
+        if u and u.is_guest:
+            user_repo.delete(pid)
+            
+    return {"message": "Torneo y usuarios invitados eliminados con éxito"}
+
 @app.get("/events/organizer/{organizer_id}", response_model=List[Event])
 def get_events_by_organizer(organizer_id: str, db: Session = Depends(get_db)):
     """

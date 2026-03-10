@@ -46,6 +46,12 @@ class UserRepository:
         self.session.commit()
         return user
 
+    def delete(self, user_id: str):
+        model = self.session.query(UserModel).filter(UserModel.id == user_id).first()
+        if model:
+            self.session.delete(model)
+            self.session.commit()
+
 
 class FormatRulesetRepository:
     def __init__(self, session: Session):
@@ -188,6 +194,12 @@ class EventRepository:
         events = [self._map_to_domain(m) for m in models]
         # Filtrar en memoria por simplicidad ya que los players son JSON array
         return [e for e in events if player_id in e.players]
+
+    def delete(self, event_id: str):
+        model = self.session.query(EventModel).filter(EventModel.id == event_id).first()
+        if model:
+            self.session.delete(model)
+            self.session.commit()
 
     def get_pod_by_id(self, pod_id: str) -> Optional[Event]:
         # Para encontrar a qué evento pertenece un pod, podemos hacer un join o buscar el pod y luego el evento
