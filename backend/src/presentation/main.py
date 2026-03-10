@@ -111,9 +111,17 @@ def create_event(event_in: EventCreate, db: Session = Depends(get_db)):
 @app.get("/rulesets/", response_model=List[FormatRulesetResponse])
 def list_rulesets(db: Session = Depends(get_db)):
     """Devuelve todos los rulesets disponibles."""
-    repo = FormatRulesetRepository(db)
     models = db.query(FormatRulesetModel).all()
-    return [repo._map_to_domain(m) for m in models]
+    return [
+        FormatRuleset(
+            id=m.id,
+            name=m.name,
+            win_points=m.win_points,
+            draw_points=m.draw_points,
+            kill_points=m.kill_points,
+            allows_custom_achievements=m.allows_custom_achievements
+        ) for m in models
+    ]
 
 @app.post("/rulesets/", response_model=FormatRulesetResponse)
 def create_ruleset(ruleset_in: FormatRulesetCreate, db: Session = Depends(get_db)):
