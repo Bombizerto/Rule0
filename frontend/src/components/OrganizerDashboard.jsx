@@ -10,8 +10,6 @@ const OrganizerDashboard = ({ organizerId, onSelectEvent }) => {
     const [expandedLeaderboard, setExpandedLeaderboard] = useState(null); // event_id activo
     const [leaderboards, setLeaderboards] = useState({}); // { event_id: [...] }
 
-    console.log("[Rule0] OrganizerDashboard render. organizerId:", organizerId);
-
     // Estado para el modal de Crear Torneo
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [newEventTitle, setNewEventTitle] = useState('');
@@ -75,11 +73,9 @@ const OrganizerDashboard = ({ organizerId, onSelectEvent }) => {
     };
 
     useEffect(() => {
-        console.log("[Rule0] OrganizerDashboard mount. Fetching events...");
         fetchEvents();
         // Verificar si es la primera vez que entra para lanzar el tutorial
         if (!localStorage.getItem('rule0_tour_completed')) {
-            console.log("[Rule0] rule0_tour_completed not found. setRunTour(true)");
             setRunTour(true);
         }
     }, [organizerId]);
