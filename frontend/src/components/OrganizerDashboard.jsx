@@ -37,11 +37,16 @@ const OrganizerDashboard = ({ organizerId, onSelectEvent }) => {
     }, [organizerId]);
 
     // Cargar rulesets disponibles al montar
-    const [rulesetId, setRulesetId] = useState(null);
+    const [rulesets, setRulesets] = useState([]);
+    const [rulesetId, setRulesetId] = useState('');
+
     useEffect(() => {
         fetch(`${API_BASE_URL}/rulesets/`)
             .then(r => r.ok ? r.json() : [])
-            .then(data => { if (data.length > 0) setRulesetId(data[0].id); })
+            .then(data => {
+                setRulesets(data);
+                if (data.length > 0) setRulesetId(data[0].id);
+            })
             .catch(() => { });
     }, []);
 
@@ -233,6 +238,25 @@ const OrganizerDashboard = ({ organizerId, onSelectEvent }) => {
                                         background: 'rgba(255,255,255,0.05)', color: 'white'
                                     }}
                                 />
+                            </div>
+                            <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                                <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Reglas del Formato</label>
+                                <select
+                                    value={rulesetId}
+                                    onChange={(e) => setRulesetId(e.target.value)}
+                                    style={{
+                                        width: '100%', padding: '0.75rem',
+                                        borderRadius: '8px', border: '1px solid var(--border)',
+                                        background: 'rgba(255,255,255,0.05)', color: 'white',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    {rulesets.map(ruleset => (
+                                        <option key={ruleset.id} value={ruleset.id} style={{ color: 'black' }}>
+                                            {ruleset.name} (Win: {ruleset.win_points}, Draw: {ruleset.draw_points})
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
                             <div className="form-group" style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                 <input
