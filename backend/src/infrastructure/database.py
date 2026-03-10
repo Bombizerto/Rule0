@@ -18,11 +18,19 @@ if SQLALCHEMY_DATABASE_URL and SQLALCHEMY_DATABASE_URL.startswith("postgres://")
     SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 # Argumentos extra para SQLite
-connect_args = {"check_same_thread": False} if SQLALCHEMY_DATABASE_URL.startswith("sqlite") else {}
-
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args=connect_args
-)
+if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(
+        SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+    )
+else:
+    # Postgres/Supabase pooling config
+    engine = create_engine(
+        SQLALCHEMY_DATABASE_URL, 
+        pool_pre_ping=True,       # Verifica la conexión antes de usarla
+        pool_size=5,              # Conexiones persistentes en el pool
+        max_overflow=10,          # Picos máximos temporales
+        pool_recycle=1800         # Refresca conexiones cada 30min
+    )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

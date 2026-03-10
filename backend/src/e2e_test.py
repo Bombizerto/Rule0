@@ -95,7 +95,7 @@ def main():
         # 6. Generar Ronda
         print_step("Generando Ronda 1")
         # El endpoint cambió recientemente, comprobamos la firma real
-        r = requests.post(f"{BASE_URL}/matchmaking/generate-round/{event_id}")
+        r = requests.post(f"{BASE_URL}/matchmaking/events/{event_id}/generate-round")
         r.raise_for_status()
         round_data = r.json()
         print_success(f"Ronda generada con ID: {round_data['id']}")
@@ -110,7 +110,7 @@ def main():
 
         # 7. Obtener Leaderboard Inicial (Deberían tener todos 0 puntos)
         print_step("Comprobando Leaderboard Inicial")
-        r = requests.get(f"{BASE_URL}/matchmaking/leaderboard/{event_id}")
+        r = requests.get(f"{BASE_URL}/matchmaking/events/{event_id}/leaderboard")
         r.raise_for_status()
         lb = r.json()
         print_success(f"Leaderboard devuelto con {len(lb)} jugadores")
