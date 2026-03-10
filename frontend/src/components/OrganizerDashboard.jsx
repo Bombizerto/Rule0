@@ -148,16 +148,7 @@ const OrganizerDashboard = ({ organizerId, onSelectEvent }) => {
                             <div className="event-card-info">
                                 <h3>{event.title}</h3>
                                 <div className="event-card-meta" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                        #{event.join_code}
-                                        <button
-                                            onClick={() => setShowQrCode(event.join_code)}
-                                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', fontSize: '1.2rem' }}
-                                            title="Mostrar QR para unirse"
-                                        >
-                                            📷
-                                        </button>
-                                    </span>
+                                    <span>#{event.join_code}</span>
                                     <span>•</span>
                                     <span>{event.players.length} Jugadores</span>
                                 </div>
@@ -183,6 +174,12 @@ const OrganizerDashboard = ({ organizerId, onSelectEvent }) => {
                                     }}
                                 >
                                     {expandedLeaderboard === event.id ? '▲ Clasificación' : '▼ Clasificación'}
+                                </button>
+                                <button
+                                    className="btn btn-secondary"
+                                    onClick={() => setShowQrCode(event.join_code)}
+                                >
+                                    QR
                                 </button>
                                 <button
                                     className="btn btn-secondary"
