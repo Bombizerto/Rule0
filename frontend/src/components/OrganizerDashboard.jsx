@@ -36,21 +36,29 @@ const OrganizerDashboard = ({ organizerId, onSelectEvent }) => {
         fetchEvents();
     }, [organizerId]);
 
+    // Cargar rulesets disponibles al montar
+    const [rulesetId, setRulesetId] = useState(null);
+    useEffect(() => {
+        fetch(`${API_BASE_URL}/rulesets/`)
+            .then(r => r.ok ? r.json() : [])
+            .then(data => { if (data.length > 0) setRulesetId(data[0].id); })
+            .catch(() => { });
+    }, []);
+
     const handleCreateEvent = async (e) => {
         e.preventDefault();
         if (!newEventTitle.trim()) return;
+        if (!rulesetId) { alert('No hay rulesets disponibles'); return; }
 
         setIsCreating(true);
         try {
-            // MOCK: Asumimos que todos los torneos usan el ruleset de Casual Commander que inyectamos en el seed
-            // Lo ideal sería obtener la lista de rulesets del servidor y elegir uno en un select
             const response = await fetch(`${API_BASE_URL}/events/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     title: newEventTitle,
                     organizer_id: organizerId,
-                    ruleset_id: 'test-ruleset-123' // ID fijo que acabamos de meter en el seed.py
+                    ruleset_id: rulesetId
                 })
             });
 
