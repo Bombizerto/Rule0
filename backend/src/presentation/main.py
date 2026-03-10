@@ -10,7 +10,7 @@ from presentation.routers.matchmaking import router as matchmaking_router
 from application.schemas import UserCreate, UserResponse, EventCreate, EventResponse, FormatRulesetCreate, FormatRulesetResponse, EventRegistrationRequest, LoginRequest, LoginResponse, GuestJoinRequest, RegisterRequest
 from domain.entities import User, Role, Event, FormatRuleset, EventStatus, PlayerStatus
 from infrastructure.database import get_db, engine
-from infrastructure.models_orm import Base
+from infrastructure.models_orm import Base, FormatRulesetModel
 from infrastructure.repositories import UserRepository, EventRepository, FormatRulesetRepository
 from sqlalchemy.orm import Session
 from fastapi import Depends
@@ -112,7 +112,7 @@ def create_event(event_in: EventCreate, db: Session = Depends(get_db)):
 def list_rulesets(db: Session = Depends(get_db)):
     """Devuelve todos los rulesets disponibles."""
     repo = FormatRulesetRepository(db)
-    models = db.query(repo.model_class).all()
+    models = db.query(FormatRulesetModel).all()
     return [repo._map_to_domain(m) for m in models]
 
 @app.post("/rulesets/", response_model=FormatRulesetResponse)
