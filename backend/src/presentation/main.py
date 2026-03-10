@@ -25,12 +25,12 @@ app = FastAPI(
 )
 
 # Configuración de CORS dinámica
-# En producción (Render/Vercel) permitiremos todos los orígenes por ahora para facilitar 
-# el despliegue inicial, pero restrictivo a dominios vercel.app en el futuro.
+# allow_credentials=False porque usamos auth por JSON body, no cookies.
+# allow_origins=["*"] permite cualquier frontend (localhost, Vercel, etc.)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], 
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
