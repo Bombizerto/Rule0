@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
+import Joyride, { STATUS } from 'react-joyride';
 import API_BASE_URL from '../config';
 
 const OrganizerDashboard = ({ organizerId, onSelectEvent }) => {
@@ -17,6 +18,41 @@ const OrganizerDashboard = ({ organizerId, onSelectEvent }) => {
 
     // Estado para el modal de QR
     const [showQrCode, setShowQrCode] = useState(null);
+
+    // Estado para el tutorial (Joyride)
+    const [runTour, setRunTour] = useState(false);
+    const [tourSteps] = useState([
+        {
+            target: 'body',
+            content: '¡Bienvenido al Panel de Organizador de Rule0! 👋 Te vamos a dar un paseo súper rápido para que aprendas a gestionar tus torneos.',
+            placement: 'center',
+            disableBeacon: true,
+        },
+        {
+            target: '#tour-new-tournament',
+            content: 'Para empezar, pulsa aquí para definir el título, las reglas y los puntos de victoria de tu primer evento.',
+            placement: 'bottom',
+        },
+        {
+            target: '#tour-events-grid',
+            content: 'Aquí aparecerán tus torneos activos. En cada tarjeta puedes ver el Código del Torneo y pulsar el botón QR para que los jugadores se inscriban al instante escaneándolo con el móvil.',
+            placement: 'top',
+        },
+        {
+            target: '#tour-events-grid',
+            content: 'Una vez todos los jugadores estén dentro, pulsa en "Gestionar". Automáticamente te generaremos la primera Ronda con Emparejamientos Suizos y la Clasificación se calculará en vivo con los resultados. ¡Suerte!',
+            placement: 'top',
+        }
+    ]);
+
+    const handleJoyrideCallback = (data) => {
+        const { status } = data;
+        const finishedStatuses = [STATUS.FINISHED, STATUS.SKIPPED];
+        if (finishedStatuses.includes(status)) {
+            setRunTour(false);
+            localStorage.setItem('rule0_tour_completed', 'true');
+        }
+    };
 
     const fetchEvents = async () => {
         try {
@@ -38,6 +74,10 @@ const OrganizerDashboard = ({ organizerId, onSelectEvent }) => {
 
     useEffect(() => {
         fetchEvents();
+        // Verificar si es la primera vez que entra para lanzar el tutorial
+        if (!localStorage.getItem('rule0_tour_completed')) {
+            setRunTour(true);
+        }
     }, [organizerId]);
 
     // Cargar rulesets disponibles al montar
@@ -104,7 +144,27 @@ const OrganizerDashboard = ({ organizerId, onSelectEvent }) => {
     if (error) return <div className="error-message" style={{ color: '#ff4444', textAlign: 'center', marginTop: '2rem' }}>{error}</div>;
 
     return (
-        <div className="dashboard-container" style={{ maxWidth: '800px', margin: '0 auto', padding: '2rem 1rem' }}>
+        <div className="dashboard-container" id="tour-dashboard-main" style={{ maxWidth: '800px', margin: '0 auto', padding: '2rem 1rem' }}>
+            <Joyride
+                steps={tourSteps}
+                run={runTour}
+                continuous={true}
+                showSkipButton={true}
+                showProgress={true}
+                callback={handleJoyrideCallback}
+                styles={{
+                    options: {
+                        primaryColor: 'var(--accent-primary)',
+                        backgroundColor: '#1e1e1e',
+                        textColor: '#ffffff',
+                        zIndex: 10000,
+                    },
+                    buttonClose: {
+                        display: 'none',
+                    }
+                }}
+                locale={{ back: 'Anterior', close: 'Cerrar', last: 'Finalizar', next: 'Siguiente', skip: 'Saltar' }}
+            />
             <style>{`
                  /* Añadiremos estos estilos en el index.css pero los dejamos aquí inline provisionalmente */
                 .event-card {
@@ -131,8 +191,19 @@ const OrganizerDashboard = ({ organizerId, onSelectEvent }) => {
             `}</style>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                <h2>Mis Torneos</h2>
-                <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <h2 style={{ margin: 0 }}>Mis Torneos</h2>
+                    {localStorage.getItem('rule0_tour_completed') && (
+                        <button
+                            className="btn btn-secondary"
+                            style={{ padding: '4px 10px', fontSize: '0.8rem', background: 'transparent', border: '1px solid var(--border)' }}
+                            onClick={() => setRunTour(true)}
+                        >
+                            ¿Ayuda?
+                        </button>
+                    )}
+                </div>
+                <button id="tour-new-tournament" className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
                     + Nuevo Torneo
                 </button>
             </div>
@@ -142,7 +213,7 @@ const OrganizerDashboard = ({ organizerId, onSelectEvent }) => {
                     <p>No tienes ningún torneo registrado todavía.</p>
                 </div>
             ) : (
-                <div className="events-grid">
+                <div className="events-grid" id="tour-events-grid">
                     {events.map(event => (
                         <div key={event.id} className="event-card">
                             <div className="event-card-info">
