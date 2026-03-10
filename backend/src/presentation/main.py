@@ -1,8 +1,10 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from typing import List
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 import uuid
+import traceback
 from datetime import datetime, UTC
 from presentation.routers.matchmaking import router as matchmaking_router 
 from application.schemas import UserCreate, UserResponse, EventCreate, EventResponse, FormatRulesetCreate, FormatRulesetResponse, EventRegistrationRequest, LoginRequest, LoginResponse, GuestJoinRequest, RegisterRequest
@@ -36,6 +38,17 @@ app.add_middleware(
 )
 
 app.include_router(matchmaking_router)
+
+# Handler global para que los errores 500 incluyan cabeceras CORS
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    tb = traceback.format_exc()
+    print(f"⚠️ ERROR NO CONTROLADO: {exc}\n{tb}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Internal Server Error: {str(exc)}"},
+    )
+
 # Endpoint básico de estado (Health Check)
 @app.get("/")
 def health_check():
