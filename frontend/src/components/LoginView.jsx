@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import API_BASE_URL from '../config';
 
 function LoginView({ onLoginSuccess }) {
@@ -10,6 +10,15 @@ function LoginView({ onLoginSuccess }) {
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get('code');
+        if (code) {
+            setIsGuestMode(true);
+            setJoinCode(code.toUpperCase());
+        }
+    }, []);
 
     const handleSubmit = async (e) => {
         e.preventDefault();

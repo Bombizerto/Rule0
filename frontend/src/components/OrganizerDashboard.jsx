@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import API_BASE_URL from '../config';
 
 const OrganizerDashboard = ({ organizerId, onSelectEvent }) => {
@@ -13,6 +14,9 @@ const OrganizerDashboard = ({ organizerId, onSelectEvent }) => {
     const [newEventTitle, setNewEventTitle] = useState('');
     const [isCreating, setIsCreating] = useState(false);
     const [autoJoin, setAutoJoin] = useState(false);
+
+    // Estado para el modal de QR
+    const [showQrCode, setShowQrCode] = useState(null);
 
     const fetchEvents = async () => {
         try {
@@ -143,8 +147,17 @@ const OrganizerDashboard = ({ organizerId, onSelectEvent }) => {
                         <div key={event.id} className="event-card">
                             <div className="event-card-info">
                                 <h3>{event.title}</h3>
-                                <div className="event-card-meta">
-                                    <span>#{event.join_code}</span>
+                                <div className="event-card-meta" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        #{event.join_code}
+                                        <button
+                                            onClick={() => setShowQrCode(event.join_code)}
+                                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', fontSize: '1.2rem' }}
+                                            title="Mostrar QR para unirse"
+                                        >
+                                            📷
+                                        </button>
+                                    </span>
                                     <span>•</span>
                                     <span>{event.players.length} Jugadores</span>
                                 </div>
@@ -298,6 +311,46 @@ const OrganizerDashboard = ({ organizerId, onSelectEvent }) => {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Código QR */}
+            {showQrCode && (
+                <div className="modal-overlay" style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex',
+                    justifyContent: 'center', alignItems: 'center', zIndex: 1100
+                }} onClick={() => setShowQrCode(null)}>
+                    <div className="modal-content" style={{
+                        background: 'white', padding: '2.5rem',
+                        borderRadius: '16px', border: '1px solid var(--border)',
+                        width: '90%', maxWidth: '350px',
+                        display: 'flex', flexDirection: 'column', alignItems: 'center',
+                        color: 'black'
+                    }} onClick={e => e.stopPropagation()}>
+                        <h3 style={{ marginTop: 0, marginBottom: '0.5rem', textAlign: 'center' }}>Escanear para unirse</h3>
+                        <p style={{ marginBottom: '1.5rem', opacity: 0.7, textAlign: 'center', fontSize: '0.9rem' }}>
+                            Código: <strong>{showQrCode}</strong>
+                        </p>
+
+                        <div style={{ background: 'white', padding: '10px', borderRadius: '10px' }}>
+                            <QRCodeSVG
+                                value={`${window.location.origin}/?code=${showQrCode}`}
+                                size={220}
+                                level="H"
+                                fgColor="#111111"
+                                bgColor="#FFFFFF"
+                            />
+                        </div>
+
+                        <button
+                            className="btn btn-primary"
+                            style={{ width: '100%', marginTop: '2rem' }}
+                            onClick={() => setShowQrCode(null)}
+                        >
+                            Cerrar
+                        </button>
                     </div>
                 </div>
             )}
