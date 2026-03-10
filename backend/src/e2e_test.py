@@ -97,8 +97,10 @@ def main():
         # El endpoint cambió recientemente, comprobamos la firma real
         r = requests.post(f"{BASE_URL}/matchmaking/events/{event_id}/generate-round")
         r.raise_for_status()
-        round_data = r.json()
-        print_success(f"Ronda generada con ID: {round_data['id']}")
+        resp_data = r.json()
+        round_data = resp_data.get("round", {})
+        
+        print_success(f"Ronda generada con ID: {round_data.get('id')}")
         
         pods = round_data.get("pods", [])
         if not pods:
